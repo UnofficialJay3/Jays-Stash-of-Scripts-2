@@ -198,8 +198,10 @@ function C.Connect()
 		end
 		
 		if C.plat then
-			hum.PlatformStand = true
-			hum:ChangeState(Enum.HumanoidStateType.PlatformStanding)
+			pcall(function()
+				hum.PlatformStand = true
+				hum:ChangeState(Enum.HumanoidStateType.PlatformStanding)
+			end)
 		end
 		
 		if C.ang then
