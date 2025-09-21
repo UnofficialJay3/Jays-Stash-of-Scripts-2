@@ -3,10 +3,11 @@
 -- Script initialization
 -- Module grabber
 local M = _G["__JaysTHEMODULE__"]
-if not M then warn("JaysScripts - The module 'JaysTHEMODULE' is not loaded! Attempting to add...")
+if not M then
+    warn("JaysScripts - The module 'JaysTHEMODULE' is not loaded! Attempting to add...")
     loadstring(game:HttpGet("https://raw.githubusercontent.com/UnofficialJay3/Jays-Stash-of-Scripts-2/refs/heads/main/JaysTHEMODULE.lua"))()
-    print("Executed JaysFlyin.lua attempting to link.")
-    if _G["__JaysTHEMODULE__"] do
+    print("Executed JaysTHEMODULE.lua attempting to link.")
+    if _G["__JaysTHEMODULE__"] then
         M = _G["__JaysTHEMODULE__"]
         print("Linked JaysTHEMODULE!")
     end
@@ -285,7 +286,7 @@ end)
 
 
 -- Exit script
-C.AddCmd({"exitscript", "es", "escript"} --[[Don't think about it]],function()
+C.AddCmd({"exitscript", "es", "escript"},function()
 	print("Rest in peace JaysClientCmds...")
 	task.wait(1)
 	M.CleanModule(modulekey)
@@ -400,7 +401,7 @@ local Fly = _G["__JaysFlyin__"]
 if not Fly then warn("JaysFlyin.lua is not loaded. Attempting to load...")
     loadstring(game:HttpGet("https://raw.githubusercontent.com/UnofficialJay3/Jays-Stash-of-Scripts-2/refs/heads/main/JaysFlyin.lua"))()
     print("Executed JaysFlyin.lua attempting to link.")
-    if _G["__JaysFlyin__"] do
+    if _G["__JaysFlyin__"] then
         Fly = _G["__JaysFlyin__"]
         print("Linked JaysFlyin!")
     end
