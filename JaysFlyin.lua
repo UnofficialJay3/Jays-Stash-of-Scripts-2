@@ -3,7 +3,9 @@
 -- Script initialization
 -- Module grabber
 local M = _G["__JaysTHEMODULE__"]
-if not M then warn("JaysScripts - The module 'JaysTHEMODULE' is not loaded!")return end
+if not M then warn("JaysScripts - The module 'JaysTHEMODULE' is not loaded! Attempting to add...")
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/UnofficialJay3/Jays-Stash-of-Scripts-2/refs/heads/main/JaysTHEMODULE.lua"))()
+end
 
 -- Add JaysClientCmds
 local C, modulekey = M.AddScript("JaysFlyin")

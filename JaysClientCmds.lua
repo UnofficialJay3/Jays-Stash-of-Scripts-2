@@ -3,7 +3,14 @@
 -- Script initialization
 -- Module grabber
 local M = _G["__JaysTHEMODULE__"]
-if not M then warn("JaysScripts - The module 'JaysTHEMODULE' is not loaded!")return end
+if not M then warn("JaysScripts - The module 'JaysTHEMODULE' is not loaded! Attempting to add...")
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/UnofficialJay3/Jays-Stash-of-Scripts-2/refs/heads/main/JaysTHEMODULE.lua"))()
+    print("Executed JaysFlyin.lua attempting to link.")
+    if _G["__JaysTHEMODULE__"] do
+        M = _G["__JaysTHEMODULE__"]
+        print("Linked JaysTHEMODULE!")
+    end
+end
 
 -- Add JaysClientCmds
 local C, modulekey = M.AddScript("JaysClientCmds")
@@ -390,6 +397,14 @@ end)
 
 -- Fly
 local Fly = _G["__JaysFlyin__"]
+if not Fly then warn("JaysFlyin.lua is not loaded. Attempting to load...")
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/UnofficialJay3/Jays-Stash-of-Scripts-2/refs/heads/main/JaysFlyin.lua"))()
+    print("Executed JaysFlyin.lua attempting to link.")
+    if _G["__JaysFlyin__"] do
+        Fly = _G["__JaysFlyin__"]
+        print("Linked JaysFlyin!")
+    end
+end
 
 C.AddCmd("fly",function(value)
 	Fly.UpdateSettings({
