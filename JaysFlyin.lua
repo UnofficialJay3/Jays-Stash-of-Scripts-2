@@ -105,7 +105,7 @@ end
 function C.UpdateSettings(t)
 	if not t then return end
 	
-	local function UpdateSetting(n)
+	local function UpdateSetting(n)	
 		if t[n] ~= nil then
 			local value = t[n]
 			C[n] = value
@@ -123,6 +123,21 @@ function C.UpdateSettings(t)
 	if C.Connections.FlyConn then
 		C.Connect()
 	end
+end
+
+
+
+-- Get settings
+function C.GetSettings()
+	local t = {}
+	t.key = C.key
+	t.speed = C.speed
+	t.cf = C.cf
+	t.camrot = C.camrot
+	t.anim = C.anim
+	t.plat = C.plat
+	t.ang = C.ang
+	return t
 end
 
 
@@ -174,7 +189,7 @@ function C.Connect()
 			moveVec = moveVec.Unit
 			if C.cf then
 				local finalPos = root.Position + moveVec * C.speed * dt
-				root.CFrame = CFrame.new(finalPos) * (root.CFrame - root.Position)
+				root.CFrame = CFrame.new(finalPos) * (root.CFrame - root.CFrame.Position)
 			else
 				C.lv.VectorVelocity = moveVec * C.speed
 			end

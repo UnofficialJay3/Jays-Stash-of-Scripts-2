@@ -49,17 +49,18 @@ M.Tasks = {}
 
 
 -- Add script to _G
+local company = "JaysScripts" -- Unofficially
 function M.AddScript(name)
 	local newName = "__" .. name .. "__"
 	
 	-- Check if the script already exists
 	if _G[newName] then
-		warn("JaysScripts - A script named '" .. name .. "' already exists in _G! Attempting to update...")
+		warn(company .. " - A script named '" .. name .. "' already exists in _G! Attempting to update...")
 	end
 	
 	_G[newName] = {}
 	local a = _G[newName]
-	print("JaysScripts - " .. name .. " | Git: UnofficialJay3")
+	print(company .. " - " .. name .. " | Git: UnofficialJay3")
 	return a, newName
 end
 
@@ -90,6 +91,15 @@ function M.CleanModule(key)
 	_G[key] = nil
 
 	print("Cleaned module:", key)
+end
+
+-- Clean _G
+function M.Clean_G()
+	print("Rest in peace all of my scripts - Jay")
+	wait(1)
+	for _, v in pairs(_G) do
+		v = nil
+	end
 end
 
 

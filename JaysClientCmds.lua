@@ -286,7 +286,7 @@ end)
 
 
 -- Exit script
-C.AddCmd({"exitscript", "es", "escript"},function()
+C.AddCmd({"exitscript", "es", "escript"} --[[Don't think about it]],function()
 	print("Rest in peace JaysClientCmds...")
 	task.wait(1)
 	M.CleanModule(modulekey)
@@ -333,6 +333,7 @@ C.AddCmd({"loopcmd", "lc"}, function(times, ...)
 	-- Loop n times
 	for i = 1, times do
 		C.HandleCmdText(cmdText)
+		task.wait()
 	end
 end)
 
@@ -408,10 +409,19 @@ if not Fly then warn("JaysFlyin.lua is not loaded. Attempting to load...")
 end
 
 C.AddCmd("fly",function(value)
-	Fly.UpdateSettings({
-		speed = value or 50,
-		cf = false
-	})
+	if value then
+		Fly.UpdateSettings({
+			speed = value or 50,
+			cf = false
+		})
+		
+		defaultflightspeed = value or 50
+	else
+		Fly.UpdateSettings({
+			speed = defaultflightspeed,
+			cf = false
+		})
+	end
 	
 	Fly.Connect()
 end)
@@ -421,10 +431,19 @@ C.AddCmd("unfly",function()
 end)
 
 C.AddCmd("cfly",function(value)
-	Fly.UpdateSettings({
-		speed = value or 50,
-		cf = true
-	})
+	if value then
+		Fly.UpdateSettings({
+			speed = value or 50,
+			cf = true
+		})
+
+		defaultflightspeed = value or 50
+	else
+		Fly.UpdateSettings({
+			speed = defaultflightspeed,
+			cf = true
+		})
+	end
 	
 	Fly.Connect()
 end)
@@ -490,13 +509,45 @@ C.AddCmd({"deletepoint", "dp"},function(index)
 	end
 end)
 
-C.AddCmd({"printpoints", "prp"},function() -- I am not naming print points to pp.
-	if #C.SpawnPoints == 0 then warn("No points saved.") return end -- If the table is empty then return.
-	
-	print("Spawn points:")
-	for i, v in pairs(C.SpawnPoints) do
-		local cf = v
-		print("Index:",i,string.format("Position -> X: %.2f, Y: %.2f, Z: %.2f", cf.Position.X, cf.Position.Y, cf.Position.Z))
+-- Flag to track loop state
+local runningLLP = false
+
+C.AddCmd({"looppoints", "loopp", "lop"}, function(seconds)
+	print("Looping through all points once...")
+	for i, v in ipairs(C.SpawnPoints) do
+		print("Index:", i)
+		root.CFrame = v
+		task.wait(seconds)
+	end
+end)
+
+C.AddCmd({"looplooppoints", "llp"}, function(seconds)
+	if runningLLP then
+		print("Already looping points!")
+		return
+	end
+
+	print("Looping through all points in a loop...")
+	runningLLP = true
+
+	task.spawn(function()
+		while runningLLP do
+			for i, v in ipairs(C.SpawnPoints) do
+				if not runningLLP then break end -- break out if stopped
+				print("Index:", i)
+				root.CFrame = v
+				task.wait(seconds)
+			end
+		end
+	end)
+end)
+
+C.AddCmd({"stoplooplooppoints", "sllp"}, function()
+	if runningLLP then
+		runningLLP = false
+		print("Stopped loop through all points in a loop.")
+	else
+		print("No loop was running.")
 	end
 end)
 
@@ -512,4 +563,191 @@ C.AddCmd("loadstring",function(str)
 	else
 		warn("Loadstring error:",r)
 	end
+end)
+
+
+-- Spin command
+C.AddCmd("spin",function(value)
+	-- Check if any angular velocities here to delete them
+	for _, v in pairs(root:GetChildren()) do
+		if v:IsA("AngularVelocity") then
+			v:Destroy()
+		end
+	end
+	
+	-- Create angular velocity
+	local att = Instance.new("Attachment", root)
+	local av = Instance.new("AngularVelocity", root)
+	av.Attachment0 = att
+	av.MaxTorque = math.huge
+	av.AngularVelocity = Vector3.new(0, value, 0)
+end)
+
+C.AddCmd("unspin",function()
+	-- Check if any angular velocities here to delete them
+	for _, v in pairs(root:GetChildren()) do
+		if v:IsA("AngularVelocity") then
+			v:Destroy()
+		end
+	end
+end)
+
+
+-- _G-execute - runs a function in the _G table or any table I guess.
+C.AddCmd("_gexecute", function(input) -- Thank you chatgpt 🥲
+	-- Separate the path and the arguments
+	local path, args = string.match(input, "^%s*([^(]+)%s*%((.*)%)%s*$")
+	path = path or input -- if no parentheses, just use input
+	args = args or ""
+
+	-- Convert comma-separated args into a Lua table
+	local argList = {}
+	for arg in string.gmatch(args, "[^,]+") do
+		arg = arg:match("^%s*(.-)%s*$") -- trim spaces
+		-- Try to auto-convert to number or boolean
+		if tonumber(arg) then
+			table.insert(argList, tonumber(arg))
+		elseif arg == "true" then
+			table.insert(argList, true)
+		elseif arg == "false" then
+			table.insert(argList, false)
+		elseif arg ~= "" then
+			-- Strip quotes if present
+			arg = arg:gsub("^['\"](.-)['\"]$", "%1")
+			table.insert(argList, arg)
+		end
+	end
+
+	-- Your function walker
+	local function _gexecute(path, ...)
+		local parts = {}
+		for part in string.gmatch(path, "[^.]+") do
+			table.insert(parts, part)
+		end
+
+		local target = _G
+		for i = 1, #parts - 1 do
+			target = target[parts[i]]
+			if not target then
+				error("Invalid path: " .. table.concat(parts, ".", 1, i))
+			end
+		end
+
+		local funcName = parts[#parts]
+		local func = target[funcName]
+
+		if type(func) ~= "function" then
+			error("Target is not a function: " .. path)
+		end
+
+		return func(...)
+	end
+
+	-- Call it with unpacked args
+	return _gexecute(path, table.unpack(argList))
+end)
+
+
+-- Noclip
+C.AddCmd("noclip", function()
+	-- Check if already noclip disconnect em
+	if C.Connections.NoclipConn then
+		C.Connections.NoclipConn:Disconnect()
+		C.Connections.NoclipConn = nil
+		return
+	end
+	
+	-- Create a connection for noclip
+	C.Connections.NoclipConn = RunService.Stepped:Connect(function()
+		for _, v in pairs(char:GetDescendants()) do
+			if v:IsA("Part") or v:IsA("BasePart") then
+				v.CanCollide = false
+			end
+		end
+	end)
+end)
+
+
+-- Fling command - Flings objects and maybe YOU!
+C.oldFlySettings = {}
+C.Connections.FlingConn = nil
+C.FlingAtt = nil
+C.FlingAV = nil
+
+C.AddCmd("fling", function(intensity)
+	-- Check intensity
+	intensity = tonumber(intensity) or 1e33
+	
+	-- Save settings, change settings and connect to fly.
+	C.oldFlySettings = Fly.GetSettings()
+	Fly.UpdateSettings({
+		cf = true,
+		camrot = false,
+		ang = false,
+	})
+	Fly.Connect()
+	
+	-- Set up av
+	local av = C.FlingAV -- Shorter cuz why not
+	local att = C.FlingAtt
+	att = Instance.new("Attachment",root)
+	av = Instance.new("AngularVelocity",root)
+	av.Attachment0 = att
+	av.MaxTorque = math.huge
+	av.AngularVelocity = Vector3.one * intensity
+	
+	cam.CameraSubject = root
+	
+	-- Set up massless limbs + other shlih
+	C.Connections.FlingConn = RunService.Stepped:Connect(function()
+		for _, v in pairs(char:GetDescendants()) do
+			if v:IsA("Part") or v:IsA("BasePart") then
+				v.Massless = true
+				v.CanCollide = false
+			end
+			if v.Name == "HumanoidRootPart" then
+				v.Massless = false
+				v.CanCollide = false
+			end
+		end
+	end)
+end)
+
+C.AddCmd("unfling",function()
+	-- Calm it down
+	for _, v in pairs(root:GetChildren()) do
+		if v:IsA("AngularVelocity") or v:IsA("Attachment") then
+			v:Destroy()
+		end
+	end
+	
+	-- Add new av to calm it down
+	local a = Instance.new("Attachment",root)
+	local aa = Instance.new("AngularVelocity",root)
+	aa.Attachment0 = a
+	aa.MaxTorque = math.huge
+	aa.AngularVelocity = Vector3.zero
+	
+	task.delay(0.1,function()
+		-- Let it down
+		pcall(function()
+			C.FlingAV:Destroy()
+			C.FlingAV = nil
+			C.FlingAtt:Destroy()
+			C.FlingAtt = nil
+		end)
+		a:Destroy()
+		aa:Destroy()
+		a = nil
+		aa = nil
+		
+		-- Disconnect
+		C.Connections.FlingConn:Disconnect()
+		C.Connections.FlingConn = nil
+		
+		-- Reset fly settings + other stuff
+		Fly.UpdateSettings(C.oldFlySettings)
+		Fly.Disconnect()
+		cam.CameraSubject = hum
+	end)
 end)
