@@ -676,7 +676,7 @@ C.FlingAV = nil
 
 C.AddCmd("fling", function(intensity)
 	-- Check intensity
-	intensity = tonumber(intensity) or 1e33
+	intensity = tonumber(intensity) or 1e31 -- Go for 1e32 or 1e33 if u feelin' cahzy!
 	
 	-- Save settings, change settings and connect to fly.
 	C.oldFlySettings = Fly.GetSettings()
