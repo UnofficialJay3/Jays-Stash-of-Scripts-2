@@ -37,6 +37,17 @@ local PlayerModule = player:WaitForChild("PlayerScripts"):WaitForChild("PlayerMo
 local ControlModule = require(PlayerModule:WaitForChild("ControlModule"))
 C.Commands = {} -- Listes all the names, functions for each command.
 
+-- Fly
+local Fly = _G["__JaysFlyin__"]
+if not Fly then warn("JaysFlyin.lua is not loaded. Attempting to load...")
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/UnofficialJay3/Jays-Stash-of-Scripts-2/refs/heads/main/JaysFlyin.lua"))()
+    print("Executed JaysFlyin.lua attempting to link.")
+    if _G["__JaysFlyin__"] then
+        Fly = _G["__JaysFlyin__"]
+        print("Linked JaysFlyin!")
+    end
+end
+
 local function Reset_Tation()
 	if C.Connections.loopto then
 		print("Disconnected loopto.")
@@ -398,15 +409,7 @@ end)
 
 
 -- Fly
-local Fly = _G["__JaysFlyin__"]
-if not Fly then warn("JaysFlyin.lua is not loaded. Attempting to load...")
-    loadstring(game:HttpGet("https://raw.githubusercontent.com/UnofficialJay3/Jays-Stash-of-Scripts-2/refs/heads/main/JaysFlyin.lua"))()
-    print("Executed JaysFlyin.lua attempting to link.")
-    if _G["__JaysFlyin__"] then
-        Fly = _G["__JaysFlyin__"]
-        print("Linked JaysFlyin!")
-    end
-end
+local defaultflightspeed = 50
 
 C.AddCmd("fly",function(value)
 	if value then
