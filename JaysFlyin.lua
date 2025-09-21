@@ -160,12 +160,19 @@ end
 function C.Connect()
 	-- If connected, disconnect but still keep everything da same.
 	C.Disconnect(true)
-	
+
 	-- Add velocity if haven't.
 	C.AddVel(true)
-	
+
 	-- The connection(tm)
 	C.Connections.FlyConn = RunService.Heartbeat:Connect(function(dt)
+		-- Re-fetch root + hum if missing
+		if not root or not root.Parent then
+			local Z = M.GetLocalCharacter()
+			player, char, root, hum = Z.player, Z.char, Z.root, Z.hum
+			if not root then return end -- skip this frame until we got a root
+		end
+
 		-- Get cam
 		local camCF = cam.CFrame
 		local f = camCF.LookVector
@@ -175,12 +182,11 @@ function C.Connect()
 		-- Get moveVec
 		local moveVec = Vector3.zero
 
-		
 		-- Mobile moveVec
 		local mobileVec = ControlModule:GetMoveVector()
 		if mobileVec.Magnitude > 0 then
-			local forward = Vector3.new(camCF.LookVector.X, camCF.LookVector.Y, camCF.LookVector.Z).Unit
-			local right = Vector3.new(camCF.RightVector.X, camCF.RightVector.Y, camCF.RightVector.Z).Unit
+			local forward = camCF.LookVector.Unit
+			local right = camCF.RightVector.Unit
 			moveVec += (forward * -mobileVec.Z + right * mobileVec.X)
 		end
 
@@ -196,14 +202,14 @@ function C.Connect()
 		else
 			C.lv.VectorVelocity = Vector3.zero
 		end
-		
+
 		if C.plat then
 			pcall(function()
 				hum.PlatformStand = true
 				hum:ChangeState(Enum.HumanoidStateType.PlatformStanding)
 			end)
 		end
-		
+
 		if C.ang then
 			C.av.MaxTorque = math.huge
 		else
