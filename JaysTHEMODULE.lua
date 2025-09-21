@@ -193,7 +193,7 @@ function M.GetCharacter(name)
 	
 	local playerGui = nil
 	pcall(function()
-		playerGui = player:WaitForChild("PlayerGui")
+		playerGui = player:FindFirstChild("PlayerGui")
 	end)
 	local char = player.Character or player.CharacterAdded:Wait()
 	local root = char and char:WaitForChild("HumanoidRootPart")
