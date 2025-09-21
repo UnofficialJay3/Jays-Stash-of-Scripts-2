@@ -191,10 +191,10 @@ function M.GetCharacter(name)
 	local player = M.GetSinglePlayer(name)
 	if not player then return end
 	
-	local playerGui = player:FindFirstChild("PlayerGui")
-	local char = player.Character
-	local root = char and char:FindFirstChild("HumanoidRootPart")
-	local hum = char and char:FindFirstChild("Humanoid")
+	local playerGui = player:WaitForChild("PlayerGui")
+	local char = player.Character or player.CharacterAdded:Wait()
+	local root = char and char:WaitForChild("HumanoidRootPart")
+	local hum = char and char:WaitForChild("Humanoid")
 	
 	return {
 		["player"] = player,
