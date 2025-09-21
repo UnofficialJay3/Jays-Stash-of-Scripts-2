@@ -191,8 +191,9 @@ function M.GetCharacter(name)
 	local player = M.GetSinglePlayer(name)
 	if not player then return end
 	
+	local playerGui = nil
 	pcall(function()
-		local playerGui = player:WaitForChild("PlayerGui")
+		playerGui = player:WaitForChild("PlayerGui")
 	end)
 	local char = player.Character or player.CharacterAdded:Wait()
 	local root = char and char:WaitForChild("HumanoidRootPart")
