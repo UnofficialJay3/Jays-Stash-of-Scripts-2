@@ -6,7 +6,6 @@ local M = _G["__JaysTHEMODULE__"]
 if not M then
     warn("JaysScripts - The module 'JaysTHEMODULE' is not loaded! Attempting to add...")
     loadstring(game:HttpGet("https://raw.githubusercontent.com/UnofficialJay3/Jays-Stash-of-Scripts-2/refs/heads/main/JaysTHEMODULE.lua"))()
-    print("Executed JaysTHEMODULE.lua attempting to link.")
     if _G["__JaysTHEMODULE__"] then
         M = _G["__JaysTHEMODULE__"]
         print("Linked JaysTHEMODULE!")
@@ -41,7 +40,6 @@ C.Commands = {} -- Listes all the names, functions for each command.
 local Fly = _G["__JaysFlyin__"]
 if not Fly then warn("JaysFlyin.lua is not loaded. Attempting to load...")
     loadstring(game:HttpGet("https://raw.githubusercontent.com/UnofficialJay3/Jays-Stash-of-Scripts-2/refs/heads/main/JaysFlyin.lua"))()
-    print("Executed JaysFlyin.lua attempting to link.")
     if _G["__JaysFlyin__"] then
         Fly = _G["__JaysFlyin__"]
         print("Linked JaysFlyin!")

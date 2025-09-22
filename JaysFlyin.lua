@@ -5,6 +5,10 @@
 local M = _G["__JaysTHEMODULE__"]
 if not M then warn("JaysScripts - The module 'JaysTHEMODULE' is not loaded! Attempting to add...")
     loadstring(game:HttpGet("https://raw.githubusercontent.com/UnofficialJay3/Jays-Stash-of-Scripts-2/refs/heads/main/JaysTHEMODULE.lua"))()
+	if _G["__JaysTHEMODULE__"] then
+		M = _G["__JaysTHEMODULE__"]
+		print("Linked JaysTHEMODULE!")
+	end
 end
 
 -- Add JaysClientCmds
