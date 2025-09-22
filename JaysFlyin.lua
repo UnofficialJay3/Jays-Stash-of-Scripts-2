@@ -1,15 +1,26 @@
 -- By rbx: @IlIl_ILovAltAccsHAHA / ・゠314・一一一非公式ジェイ一一一・・ - Unofficial Jay | Git: @UnofficialJay3
 
 -- Script initialization
--- Module grabber
-local M = _G["__JaysTHEMODULE__"]
-if not M then warn("JaysScripts - The module 'JaysTHEMODULE' is not loaded! Attempting to add...")
-    loadstring(game:HttpGet("https://raw.githubusercontent.com/UnofficialJay3/Jays-Stash-of-Scripts-2/refs/heads/main/JaysTHEMODULE.lua"))()
-	if _G["__JaysTHEMODULE__"] then
-		M = _G["__JaysTHEMODULE__"]
-		print("Linked JaysTHEMODULE!")
+-- Get module function
+local function GetModule(name, link)
+	local m = _G[name]
+	if not m then
+		warn("There is no " .. name .." in _G. Attempting to load...")
+		pcall(function() loadstring(game:HttpGet(link))()end)
+		m = _G[name]
+		if m then
+			print("Linked " .. name)
+			return m
+		else
+			warn("Sorry.")
+			return false
+		end
+	else
+		return m
 	end
 end
+
+local M = GetModule("__JaysTHEMODULE__", "https://raw.githubusercontent.com/UnofficialJay3/Jays-Stash-of-Scripts-2/refs/heads/main/JaysTHEMODULE.lua")
 
 -- Add JaysClientCmds
 local C, modulekey = M.AddScript("JaysFlyin")

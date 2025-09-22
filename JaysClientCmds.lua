@@ -1,16 +1,27 @@
 -- By rbx: @IlIl_ILovAltAccsHAHA / ・゠314・一一一非公式ジェイ一一一・・ - Unofficial Jay | Git: @UnofficialJay3
 
 -- Script initialization
--- Module grabber
-local M = _G["__JaysTHEMODULE__"]
-if not M then
-    warn("JaysScripts - The module 'JaysTHEMODULE' is not loaded! Attempting to add...")
-    loadstring(game:HttpGet("https://raw.githubusercontent.com/UnofficialJay3/Jays-Stash-of-Scripts-2/refs/heads/main/JaysTHEMODULE.lua"))()
-    if _G["__JaysTHEMODULE__"] then
-        M = _G["__JaysTHEMODULE__"]
-        print("Linked JaysTHEMODULE!")
-    end
+-- Get module function
+local function GetModule(name, link)
+	local m = _G[name]
+	if not m then
+		warn("There is no " .. name .." in _G. Attempting to load...")
+		pcall(function() loadstring(game:HttpGet(link))()end)
+		m = _G[name]
+		if m then
+			print("Linked " .. name)
+			return m
+		else
+			warn("Sorry.")
+			return false
+		end
+	else
+		return m
+	end
 end
+
+local M = GetModule("__JaysTHEMODULE__", "https://raw.githubusercontent.com/UnofficialJay3/Jays-Stash-of-Scripts-2/refs/heads/main/JaysTHEMODULE.lua")
+local Fly = GetModule("__JaysFlyin__", "https://raw.githubusercontent.com/UnofficialJay3/Jays-Stash-of-Scripts-2/refs/heads/main/JaysFlyin.lua")
 
 -- Add JaysClientCmds
 local C, modulekey = M.AddScript("JaysClientCmds")
@@ -36,15 +47,7 @@ local PlayerModule = player:WaitForChild("PlayerScripts"):WaitForChild("PlayerMo
 local ControlModule = require(PlayerModule:WaitForChild("ControlModule"))
 C.Commands = {} -- Listes all the names, functions for each command.
 
--- Fly
-local Fly = _G["__JaysFlyin__"]
-if not Fly then warn("JaysFlyin.lua is not loaded. Attempting to load...")
-    loadstring(game:HttpGet("https://raw.githubusercontent.com/UnofficialJay3/Jays-Stash-of-Scripts-2/refs/heads/main/JaysFlyin.lua"))()
-    if _G["__JaysFlyin__"] then
-        Fly = _G["__JaysFlyin__"]
-        print("Linked JaysFlyin!")
-    end
-end
+
 
 local function Reset_Tation()
 	if C.Connections.loopto then
