@@ -282,15 +282,17 @@ end)
 
 
 -- Basics ended. Now for more basic + 2 and complex commands
+local defaultWalkSpeed = hum.WalkSpeed
 -- CFrame walk
 AC({"cframewalk", "cfwalk", "cwalk", "cfw", "walk2", "w2"},function(val)
 	-- Check for conn
 	if C.Connections.CFWConn then
 		C.DisconnConn(C.Connections.CFWConn)
 		M.AddLinVel(root, true)
+		hum.WalkSpeed = defaultWalkSpeed
 		if not val then return end
 	end
-	
+	hum.WalkSpeed = 0
 	val = tonumber(val) or 32
 	
 	local lv = M.AddLinVel(root)
@@ -495,6 +497,26 @@ AC({"unffly", "unflingfly"},function() -- Stop flinging
 	--		C.RunCmd("rcm")
 	--	end
 	--end)
-
 end)
 
+
+-- Basic but re
+AC({"re", "respawn"},function()
+	local h = char:FindFirstChild("Head")
+	if h then
+		h:Destroy()
+	end
+	hum.Health = -math.huge
+end)
+
+C.Connections.RespawnPos = nil
+AC({"rep", "repos", "respawnposition"},function()
+	local cf = root.CFrame
+	C.RunCmd("re")
+	C.Connections.RespawnPos = player.CharacterAdded:Connect(function()
+		RunService.Heartbeat:Wait()
+		local root = game.Players.LocalPlayer.Character:WaitForChild("HumanoidRootPart")
+		root.CFrame = cf
+		C.DisconnConn(C.Connections.RespawnPos)
+	end)
+end)
