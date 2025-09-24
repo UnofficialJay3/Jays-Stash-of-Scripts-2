@@ -520,3 +520,13 @@ AC({"rep", "repos", "respawnposition"},function()
 		C.DisconnConn(C.Connections.RespawnPos)
 	end)
 end)
+
+
+-- To
+AC({"to"},function(name)
+	local playuh = C.GetPlayerByType(name)
+	if playuh then
+		local rootB = M.GetCharacter(playuh).root
+		root.CFrame = rootB.CFrame
+	end
+end)
