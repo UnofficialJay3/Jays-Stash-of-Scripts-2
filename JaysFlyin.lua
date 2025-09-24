@@ -21,7 +21,7 @@ local function ScriptGrabber(name, link)
 	return scipt
 end
 
-local M = ScriptGrabber("JaysMainModule", "No url :(")
+local M = ScriptGrabber("JaysMainModule", "https://raw.githubusercontent.com/UnofficialJay3/Jays-Stash-of-Scripts-2/refs/heads/main/JaysMainModule.lua")
 if not M then return end
 
 -- Add script
@@ -201,4 +201,5 @@ function C.Connect()
 			root.CFrame = CFrame.new(root.Position, root.Position + cam.CFrame.LookVector)
 		end
 	end)
+
 end
