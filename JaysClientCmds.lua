@@ -21,8 +21,8 @@ local function ScriptGrabber(name, link)
 	return scipt
 end
 
-local M = ScriptGrabber("JaysMainModule", "No url :(")
-local Fly = ScriptGrabber("JaysFlyin", "No url :(")
+local M = ScriptGrabber("JaysMainModule", "https://raw.githubusercontent.com/UnofficialJay3/Jays-Stash-of-Scripts-2/refs/heads/main/JaysMainModule.lua")
+local Fly = ScriptGrabber("JaysFlyin", "https://raw.githubusercontent.com/UnofficialJay3/Jays-Stash-of-Scripts-2/refs/heads/main/JaysFlyin.lua")
 if not M then return end
 
 -- Add script
@@ -493,4 +493,5 @@ AC({"unffly", "unflingfly"},function() -- Stop flinging
 	--		C.RunCmd("rcm")
 	--	end
 	--end)
+
 end)
