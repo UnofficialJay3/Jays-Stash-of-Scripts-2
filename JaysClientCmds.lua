@@ -432,10 +432,12 @@ AC({"ffly", "fling", "flingfly"},function(val, intensity) -- Fling fly
 	
 	if C.Connections.FlingFlyConn then
 		C.Connections.FlingFlyConn:Disconnect()
-		flingflyav:Destroy()
-		flingflyatt:Destroy()
-		flingflyav = nil
-		flingflyatt = nil
+		pcall(function()
+			flingflyav:Destroy()
+			flingflyatt:Destroy()
+			flingflyav = nil
+			flingflyatt = nil
+		end)
 	end
 	
 	-- The actual flinging
@@ -495,3 +497,4 @@ AC({"unffly", "unflingfly"},function() -- Stop flinging
 	--end)
 
 end)
+
