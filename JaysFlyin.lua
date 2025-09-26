@@ -37,6 +37,8 @@ C.ang = true -- If true, in your flight there would be a angular velocity stoppi
 C.camrot = true -- If !false then your root will be having the same lookvector as the camera. Complex words right?
 C.plat = true -- If 1 (true DON'T SET IT 1 OR 0) then you will be platform standing the whole time in your flight of your JET2 HOLIDAY!!!
 C.anim = true -- If not false then you are putted into the animation of idle-ness.
+local aR6 = 130025294780390
+local aR15 = 121812367375506
 
 
 
@@ -53,6 +55,33 @@ local cam = workspace.CurrentCamera
 local att = nil
 local lv = nil
 local av = nil
+local flyAnim = nil
+local FlyTrack = nil
+
+local function PlayFlyAnimation()
+	if FlyTrack then FlyTrack:Stop() end
+
+	if hum.RigType == Enum.HumanoidRigType.R6 then
+		flyAnim = Instance.new("Animation")
+		flyAnim.AnimationId = "rbxassetid://" .. aR6
+	else
+		flyAnim = Instance.new("Animation")
+		flyAnim.AnimationId = "rbxassetid://" .. aR15
+	end
+
+	FlyTrack = hum:LoadAnimation(flyAnim)
+	FlyTrack.Priority = Enum.AnimationPriority.Action4
+	FlyTrack:Play()
+	FlyTrack.Looped = true
+end
+
+-- Stop animation
+local function StopFlyAnimation()
+	if FlyTrack then
+		FlyTrack:Stop()
+		FlyTrack = nil
+	end
+end
 
 function C.DisconnConn(conn)
 	conn:Disconnect()
@@ -136,6 +165,9 @@ function C.Disconnect(state)
 	
 	if state then return end
 	
+	if C.anim then
+		StopFlyAnimation()
+	end
 	task.wait()
 	hum:ChangeState(Enum.HumanoidStateType.GettingUp)
 end
@@ -147,6 +179,10 @@ function C.Connect()
 	-- Check if connection
 	if C.Connections.Connection then
 		C.Disconnect(true)
+	end
+	
+	if C.anim then
+		PlayFlyAnimation()
 	end
 	
 	-- Set up lv and av
@@ -201,5 +237,4 @@ function C.Connect()
 			root.CFrame = CFrame.new(root.Position, root.Position + cam.CFrame.LookVector)
 		end
 	end)
-
 end

@@ -1,4 +1,7 @@
 -- Scripted by ROBLOX: @IlIl_ILovAltAccsHAHA / ・゠314・一一一非公式ジェイ一一一・・ - Unofficial Jay | GITHUB: @UnofficialJay3
+-- This script is highly unstable since this is tested ONLY in studio, sometimes with real clients.
+-- My attempts at making command toggles are really trashy right now 😢
+-- This is the re-write.
 
 -- Script init
 -- Script grabber
@@ -50,45 +53,91 @@ C.Tasks = {} -- The tasks table like task.spawn()
 C.Commands = {} -- The table that stores the commands name and the function
 local cam = workspace.CurrentCamera
 
-function C.DisconnConn(conn)
-	conn:Disconnect()
-	conn = nil
-end
-function C.CancelTask(name)
-	local thread = C.Tasks[name]
-	if thread and coroutine.status(thread) ~= "dead" then
-		task.cancel(thread)
-		C.Tasks[name] = nil
+function C.Disconnect(conn)
+	if typeof(conn) == "string" then
+		local c = C.Connections[conn]
+		if c then
+			c:Disconnect()
+			C.Connections[conn] = nil
+		end
+		return
+	end
+	if conn then
+		conn:Disconnect()
 	end
 end
+function C.CancelTask(taskOrName)
+	local thread
+
+	if typeof(taskOrName) == "string" then
+		thread = C.Tasks[taskOrName]
+		if thread then
+			C.Tasks[taskOrName] = nil
+		end
+	elseif typeof(taskOrName) == "thread" then
+		thread = taskOrName
+		for name, t in pairs(C.Tasks) do
+			if t == thread then
+				C.Tasks[name] = nil
+				break
+			end
+		end
+	end
+
+	-- If we got a valid thread, cancel it
+	if thread and coroutine.status(thread) ~= "dead" then
+		task.cancel(thread)
+	end
+end
+
 function C.CreateTask(name, func)
 	local thread = coroutine.create(func)
 	C.Tasks[name] = thread
 	task.spawn(thread)
 end
 
+-- Reset-tation   
+local function Reset2()
+	-- Disconnect stuff
+	local Z = C.Connections
+	local z = C.Tasks
+
+	local function AttemptDisconnect(n)
+		pcall(function()
+			C.Disconnect(Z[n])
+		end)
+	end
+	local function AttemptCancellation(n)
+		pcall(function()
+			C.CancelTask(z[n])
+		end)
+	end
+
+	AttemptCancellation("Test2")
+	AttemptDisconnect("Noclip")
+	AttemptDisconnect("GeneralFlingF")
+	AttemptDisconnect("CFrameWalk")
+	AttemptDisconnect("Respawnation")
+	AttemptCancellation("FlingPlayer")
+	AttemptDisconnect("TempLoopTo")
+	AttemptDisconnect("IntenseSpin")
+	AttemptDisconnect("Infjump1")
+	AttemptDisconnect("Infjump2")
+	AttemptDisconnect("LoopTo")
+	AttemptDisconnect("TempLoopTo")
+	AttemptDisconnect("Respawnation")
+
+	-- AttemptDisconnect("Connection")
+end
 local function Reset()
 	Z = M.GetLocalCharacter()
 	player, char, root, hum = Z.player, Z.char, Z.root, Z.hum
 	
-	-- Disconnect stuff
-	local Z = C.Connections
-	local z = C.Tasks
-	if z.Test1 then
-		task.cancel(z.Test1)
-	end
-	if Z.InfJumpConn then
-		C.DisconnConn(Z.InfJumpConn)
-	end
-	if Z.InfJumpReleaseConn then
-		C.DisconnConn(Z.InfJumpReleaseConn)
-	end
-	if Z.CFWConn then
-		C.DisconnConn(Z.CFWConn)
-	end
+	hum.Died:Connect(Reset2)
 end
 
 player.CharacterAdded:Connect(Reset)
+hum.Died:Connect(Reset2)
 
 
 
@@ -192,341 +241,448 @@ end
 
 
 
--- Test0 command
-AC({"test0"},function(...)
-	print("Test 0 successful")
-	print(...)
+AC({"test"},function()
+	print("This is a test!")
 end)
 
 
--- Say/message/chat command
-AC({"say", "message", "chat", "msg"},function(...)
-	local str = table.concat({...}, " ")
-	M.ChatMsg(str)
-end)
-
-
--- Dump _G table
-AC({"dump_g", "dumpglobal", "dumpg", "dg"},function()
-	M.DumpTable(_G, "_G")
-end)
-
-
--- Test1 - Testing task and cancelling tasks
-AC({"test1"}, function()
-	-- cancel if already exists
-	if C.Tasks.Test1 then
-		C.CancelTask("Test1")
+C.Tasks.Test2 = nil
+AC({"test2"},function()
+	local t = C.Tasks.Test2
+	if t then
+		C.CancelTask(t)
+		print("Test2 stopped")
 		return
 	end
-
-	-- Create task
-	C.CreateTask("Test1", function()
+	
+	print("Test2 started")
+	
+	C.CreateTask("Test2",function()
 		while task.wait(0.1) do
-			print("Test1 task running")
+			print("Test2 is running!")
 		end
 	end)
 end)
 
 
--- Test2 - Testing the LinVelOnce() function
-AC({"test2"}, function()
-	local lv, att = M.LinVelOnce(root, Vector3.new(0, 100, 0))
-end)
-
-
--- THE BASIC FAST COMMANDS
 -- Speed
-C.defaultWalkSpeed = hum.WalkSpeed
-AC({"speed"},function(val)
-	hum.WalkSpeed = tonumber(val) or C.defaultWalkSpeed
+C.DefaultSpeed = hum.WalkSpeed
+AC({"speed"},function(speed)
+	--C.SetSpeed(speed) this ai keeps coming up with random functions. THESE FUNCTIONS DON'T EXIST YET!!!
+	hum.WalkSpeed = speed or C.DefaultSpeed
 end)
+
 
 -- Jump
-hum.UseJumpPower = true
-AC({"jump"},function()
-	local currentJumpHeight = hum.JumpPower
+C.DefaultJumpPower = hum.JumpPower
+AC({"jump"},function(power)
+	-- AppOnceLinVel(part, name, max, vel, timo) reference
 	hum.Jump = true
 	hum:ChangeState(Enum.HumanoidStateType.Jumping)
-	M.LinVelOnce(root, Vector3.new(root.Velocity.X,currentJumpHeight,root.Velocity.Z))
+	M.AppOnceLinVel(root, "Jump", math.huge, Vector3.new(root.Velocity.X,power or C.DefaultJumpPower,root.Velocity.Z))
 end)
+
 
 -- Sit
 AC({"sit"},function()
-	hum.Sit = true
-end)
-
--- Inf jump
-C.InfJumpToggle = false
-AC({"infjump", "infj"},function()
-	-- Check if connection
-	if C.Connections.InfJumpConn then
-		C.DisconnConn(C.Connections.InfJumpConn)
-		C.DisconnConn(C.Connections.InfJumpReleaseConn)
-		return
-	end
-	
-	-- Create connection
-	C.Connections.InfJumpConn = UserInputService.JumpRequest:Connect(function()
-		if C.InfJumpToggle then return end
-		C.InfJumpToggle = true
-		C.RunCmd("jump")
-	end)
-
-	C.Connections.InfJumpReleaseConn = UserInputService.InputEnded:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode == Enum.KeyCode.Space or input.UserInputType == Enum.UserInputType.Touch and input.UserInputState == Enum.UserInputState.End then
-			C.InfJumpToggle = false
-		end
-	end)
+	hum.Sit = true -- As easy as that.
 end)
 
 
--- Basics ended. Now for more basic + 2 and complex commands
-local defaultWalkSpeed = hum.WalkSpeed
--- CFrame walk
-AC({"cframewalk", "cfwalk", "cwalk", "cfw", "walk2", "w2"},function(val)
-	-- Check for conn
-	if C.Connections.CFWConn then
-		C.DisconnConn(C.Connections.CFWConn)
-		M.AddLinVel(root, true)
-		hum.WalkSpeed = defaultWalkSpeed
-		if not val then return end
+-- Table of contents for restoring collisions and massless values:
+--[[
+R6
+Head: C true M false
+Root: C false M false
+Left Arm: C false M false
+Left Leg: C false M false
+Right Arm: C false M false
+Right Leg: C false M false
+Torso: C true M false
+Root: C false M false
+
+R15
+Same for limbs, upper + lower torso have C true M false
+Root: C true M false I don't know why this changed.
+
+
+Universal:
+Accessories:
+C false M false
+
+]]
+
+-- Restore Collisions + Massless
+AC({"restorecollisionmassless", "rcm"},function()
+	if C.Connections.Noclip then
+		C.Disconnect("Noclip")
 	end
-	hum.WalkSpeed = 0
-	val = tonumber(val) or 32
 	
-	local lv = M.AddLinVel(root)
-	lv.ForceLimitMode = Enum.ForceLimitMode.PerAxis
-	lv.MaxAxesForce = Vector3.new(1,0,1) * 1e10
-	
-	C.Connections.CFWConn = RunService.Heartbeat:Connect(function(dt)
-		-- Cam
-		local cf = cam.CFrame
+	for _, v in pairs(char:GetDescendants()) do
+		if not v:IsA("BasePart") and not v:IsA("Part") and not v:IsA("MeshPart") then continue end
+		-- Reset
+		v.CanCollide = false
+		v.Massless = false
 		
-		-- Move vector
-		local moveVec = M.GetMoveVector(1,0,1)
-		
-		if moveVec.Magnitude > 0 then
-			moveVec = moveVec.Unit
-			root.CFrame = root.CFrame + (moveVec * val * dt)
+		-- Head
+		if v.Name == "Head" then
+			v.CanCollide = true
 		end
-
-		local pos = root.CFrame.Position
-		local look = root.CFrame.LookVector
-		-- Force flat (Y only) rotation
-		local flatLook = Vector3.new(look.X, 0, look.Z).Unit
-		root.CFrame = CFrame.new(pos, pos + flatLook)
-	end)
-end)
-
-
--- Reset collision + massless
-AC({"rcm", "resetcm", "resetcollisionmassless"},function()
-	print("WHY ISN'T IT WORKING")
-	for _, part in ipairs(char:GetDescendants()) do
-		if part:IsA("BasePart") or part:IsA("Part") or part:IsA("MeshPart") then
-			-- baseline reset
-			part.CanCollide = false
-			part.Massless = false
-
-			-- handle accessories
-			local acc = part.Parent
-			if acc:IsA("Accessory") and part.Name == "Handle" then
-				part.Massless = true
-				part.CanCollide = false -- stays false anyway
-			end
-
-			-- special collision parts
-			if part.Name == "Head"
-				or part.Name == "Torso"
-				or part.Name == "UpperTorso"
-				or part.Name == "LowerTorso" then
-				part.CanCollide = true
-			end
-		end
-	end
-end)
-
-
--- Noclip
-C.Connections.NoclipConn = nil
-AC({"noclip"},function(state)
-	-- Checker
-	if C.Connections.NoclipConn then
-		C.DisconnConn(C.Connections.NoclipConn)
 		
-		-- Reset collision + massless
-		C.RunCmd("rcm")
-		return
-	end
-	
-	if C.Connections.NoclipConn then
-		C.DisconnConn(C.Connections.NoclipConn)
-	end
-	
-	-- Create connection
-	C.Connections.NoclipConn = RunService.Stepped:Connect(function()
-		for _, v in pairs(char:GetDescendants()) do
-			if v:IsA("BasePart") or v:IsA("Part") then
+		-- Torso
+		if v.Name == "Torso" or v.Name == "UpperTorso" or v.Name == "LowerTorso" then
+			v.CanCollide = true
+		end
+		
+		-- Root
+		if v.Name == "HumanoidRootPart" then
+			if hum.RigType == Enum.HumanoidRigType.R15 then
+				v.CanCollide = true
+			else
 				v.CanCollide = false
 			end
 		end
-	end)
+	end
 end)
 
 
--- Fly, unfly, cfly, sfly, ffly
-C.defaultFlySpeed = 50
+-- Noclip/clip
+AC({"noclip"},function()
+	C.Disconnect("Noclip")
+	
+	C.Connections.Noclip = RunService.Stepped:Connect(function()
+		for _, v in pairs(char:GetDescendants()) do
+			if not v:IsA("BasePart") and not v:IsA("Part") and not v:IsA("MeshPart") then continue end
+			v.CanCollide = false
+		end
+	end)
+end)
 
-AC({"fly"},function(val)
-	if val then
-		C.defaultFlySpeed = val
-		Fly.UpdateSettings({
-			cf = false,
-			plat = true,
-			anim = true,
-			speed = tonumber(val) or C.defaultFlySpeed
-		})
-	else
-		Fly.UpdateSettings({
-			cf = false,
-			speed = C.defaultFlySpeed
-		})
+AC({"clip"},function()
+	-- Turn off connection
+	C.Disconnect("Noclip")
+	
+	-- Use RCM to restore collisions
+	C.RunCmd("rcm")
+end)
+
+
+-- General fling/stop gfling
+local flingvel = nil
+local flingatt = nil
+AC({"generalfling","gfling"},function(intensity)
+	C.Disconnect("GeneralFling")
+	intensity = intensity or 1e31
+	
+	if flingvel then flingvel:Destroy() flingvel = nil end
+	if flingatt then flingatt:Destroy() flingatt = nil end
+	
+	if not C.Connections.CFrameWalk then
+		cam.CameraSubject = root
 	end
+	
+
+	flingvel, flingatt = M.AppModAngVel(root, "GeneralFling", math.huge, Vector3.one*intensity)
+	-- AppModAngVel(part, name, max, vel) Reference
+	C.Connections.GeneralFling = RunService.Stepped:Connect(function()
+		for _, v in pairs(char:GetDescendants()) do
+			if not v:IsA("BasePart") and not v:IsA("Part") and not v:IsA("MeshPart") then continue end
+			v.CanCollide = false
+			v.Massless = true
+		end
+	end)
+end)
+
+AC({"ungeneralfling","ungfling"},function()
+	root.Anchored = true
+	C.Disconnect("GeneralFling")
+	flingvel.AngularVelocity = Vector3.zero
+	cam.CameraSubject = hum
+	root.Velocity = Vector3.zero
+	root.AssemblyAngularVelocity = Vector3.zero
+	task.wait(0.1)
+	root.Anchored = false
+	flingvel:Destroy()
+	flingatt:Destroy()
+	flingvel = nil
+	flingatt = nil
+	C.RunCmd("rcm")
+end)
+
+
+-- Fly, unfly, sfly/fly2, cfly, ffly
+-- Regular fly/unfly
+C.DefaultFlySpeed = 50
+AC({"fly"},function(speedo)
+	if speedo then C.DefaultFlySpeed = speedo end
+	Fly.UpdateSettings({
+		speed = speedo or C.DefaultFlySpeed,
+		cf = false
+	})
+
+	Fly.Connect()
+end)
+
+-- Unfly
+AC({"unfly"},function()
+	if C.Connections.GeneralFling then
+		C.RunCmd("ungfling")
+		task.wait(0.1)
+		Fly.Disconnect()
+	else
+		Fly.Disconnect()
+	end
+end)
+
+-- Sit fly
+AC({"sfly","fly2","sitfly"},function(speedo)
+	if speedo then C.DefaultFlySpeed = speedo end
+	Fly.UpdateSettings({
+		speed = speedo or C.DefaultFlySpeed,
+		cf = false,
+		plat = false -- So you can sit
+	})
+
+	Fly.Connect()
+end)
+
+-- Cframe fly
+AC({"cfly","cframefly"},function(speedo)
+	if speedo then C.DefaultFlySpeed = speedo end
+	Fly.UpdateSettings({
+		speed = speedo or C.DefaultFlySpeed,
+		cf = true
+	})
 	
 	Fly.Connect()
 end)
 
-AC({"unfly"},function()
-	Fly.Disconnect()
-end)
-
-AC({"cfly", "cffly", "cframefly"},function(val) -- CFrame fly
-	C.RunCmd("fly", val)
+-- Fling fly
+AC({"ffly","flingfly"},function(speedo, intensity)
+	if speedo then C.DefaultFlySpeed = speedo end
 	Fly.UpdateSettings({
-		cf = false
-	})
-end)
-
-AC({"sfly", "sitfly", "fly2"},function(val) -- Sit fly
-	C.RunCmd("fly", val)
-	Fly.UpdateSettings({
-		plat = false,
-		anim = false
-	})
-	
-	-- Make it sit
-	C.RunCmd("sit")
-end)
-
-local flingflyatt = nil
-local flingflyav = nil
-C.Connections.FlingFlyConn = nil
-AC({"ffly", "fling", "flingfly"},function(val, intensity) -- Fling fly
-	C.RunCmd("fly", val)
-	Fly.UpdateSettings({
+		speed = speedo or C.DefaultFlySpeed,
 		cf = true,
-		plat = true,
-		camrot = false,
-		ang = false,
 		anim = false,
+		plat = true,
+		ang = false,
+		camrot = false
 	})
 	
-	if C.Connections.FlingFlyConn then
-		C.Connections.FlingFlyConn:Disconnect()
-		pcall(function()
-			flingflyav:Destroy()
-			flingflyatt:Destroy()
-			flingflyav = nil
-			flingflyatt = nil
-		end)
-	end
+	Fly.Connect()
 	
-	-- The actual flinging
-	-- Set up av
-	if not flingflyav or not flingflyatt then
-		flingflyatt = Instance.new("Attachment",root)
-		flingflyav = Instance.new("AngularVelocity",root)
-		flingflyav.Attachment0 = flingflyatt
-		flingflyav.MaxTorque = math.huge
-		flingflyav.Name = "fuck"
-		if not intensity then
-			intensity = 1e31 -- Why do I have to do this? Also 1e31 is a safe value.
-			-- 1e36 is the highest to go, more further and the physics breaks! In studio I guess.
+	C.RunCmd("gfling", intensity)
+end)
+
+
+-- CFrame walk
+C.DefaultCFWalkSpeed = 32
+C.TempDefaultWalkSpeed = 0
+AC({"cfwalk","cframewalk","cfw"}, function(speedo)
+	if speedo then C.DefaultCFWalkSpeed = speedo end
+	C.TempDefaultWalkSpeed = hum.WalkSpeed
+	hum.WalkSpeed = 0
+	C.Disconnect("CFrameWalk")
+
+	C.Connections.CFrameWalk = RunService.Heartbeat:Connect(function(dt)
+		local moveVec = M.GetMoveVector(1,0,1)
+		if moveVec.Magnitude > 0 then
+			local finalPos = root.Position + moveVec * C.DefaultCFWalkSpeed * dt
+			root.CFrame = CFrame.new(finalPos) * (root.CFrame - root.CFrame.Position)
 		end
-		flingflyav.AngularVelocity = Vector3.one * intensity --intensity or 1e31
-	end
-	cam.CameraSubject = root
-	C.RunCmd("noclip")
-	
-	-- Set up connection
-	C.Connections.FlingFlyConn = RunService.Stepped:Connect(function()
-		for _, v in pairs(char:GetDescendants()) do
-			if v:IsA("BasePart") or v:IsA("Part") then
-				if v.Name == "HumanoidRootPart" then continue end
-				v.CanCollide = false
-				v.Massless = true
-			end
+		
+		-- Horizontal snap
+		local pos = root.Position
+		local look = root.CFrame.LookVector
+		local flatDir = Vector3.new(look.X, 0, look.Z)
+		if flatDir.Magnitude > 0 then
+			flatDir = flatDir.Unit
+			root.CFrame = CFrame.new(pos, pos + flatDir)
 		end
 	end)
 end)
 
-AC({"unffly", "unflingfly"},function() -- Stop flinging
-	-- Disconnect
-	if C.Connections.FlingFlyConn then
-		C.DisconnConn(C.Connections.FlingFlyConn)
-	end
-	
-	
-	-- Calm it down
-	flingflyav.AngularVelocity = Vector3.zero
-	task.wait(0.1)
-	
-	-- Init unflingfly
-	flingflyav:Destroy()
-	flingflyatt:Destroy()
-	flingflyav = nil
-	flingflyatt = nil
-	C.RunCmd("noclip")
-	C.RunCmd("rcm")
-	Fly.Disconnect()
-	cam.CameraSubject = hum
-	
-	--task.spawn(function()
-	--	while task.wait(0.1) do
-	--		C.RunCmd("rcm")
-	--	end
-	--end)
+-- UnCFrame walk
+AC({"uncfwalk","uncframewalk","uncfw", "ucfw"}, function()
+	C.Disconnect("CFrameWalk")
+	hum.WalkSpeed = C.TempDefaultWalkSpeed
 end)
 
 
--- Basic but re
-AC({"re", "respawn"},function()
+-- Respawn
+AC({"respawn","re"},function()
 	local h = char:FindFirstChild("Head")
-	if h then
-		h:Destroy()
-	end
+	if h then h:Destroy() end
 	hum.Health = -math.huge
 end)
 
-C.Connections.RespawnPos = nil
-AC({"rep", "repos", "respawnposition"},function()
-	local cf = root.CFrame
+
+-- Respawn position
+AC({"respawnpos","rpos","rp","repos", "rep"},function()
+	local pos = root.Position
 	C.RunCmd("re")
-	C.Connections.RespawnPos = player.CharacterAdded:Connect(function()
+	C.Connections.Respawnation = player.CharacterAdded:Connect(function()
 		RunService.Heartbeat:Wait()
-		local root = game.Players.LocalPlayer.Character:WaitForChild("HumanoidRootPart")
-		root.CFrame = cf
-		C.DisconnConn(C.Connections.RespawnPos)
+		root.CFrame = CFrame.new(pos)
+		C.Disconnect("Respawnation")
 	end)
+end)
+
+
+-- fcfw - fling cframe walk
+AC({"fcfw","flingcframewalk"}, function(speedo, intensity)
+	C.RunCmd("cfw", speedo)
+	C.RunCmd("gfling", intensity)
+end)
+
+-- unfcfw - unfling cframe walk
+AC({"unfcfw","unflingcframewalk", "ufcfw"}, function()
+	C.RunCmd("ungfling")
+	task.wait(0.1)
+	C.RunCmd("uncfw")
+end)
+
+
+-- Spin
+local spinatt = nil
+local spinvel = nil
+C.DefaultSpinSpeed = 15
+AC({"spin"}, function(speedo)
+	if speedo then C.DefaultSpinSpeed = speedo end
+	speedo = tonumber(speedo) or C.DefaultSpinSpeed
+	if spinvel then spinvel:Destroy() spinvel = nil end
+	if spinatt then spinatt:Destroy() spinatt = nil end
+	
+	spinvel, spinatt = M.AppModAngVel(root, "Spinnin", math.huge, Vector3.yAxis * C.DefaultSpinSpeed)
+end)
+
+-- UnSpin
+AC({"unspin"}, function()
+	spinvel:Destroy()
+	spinatt:Destroy()
+	spinvel = nil
+	spinatt = nil
+end)
+
+
+-- view/spectate
+AC({"view","spectate","watch"}, function(plr)
+	if not plr then
+		cam.CameraSubject = hum
+		return
+	end
+	
+	local target = M.GetPlayerByType(player, plr)
+	if target[2] then return end
+	target = target[1]
+	cam.CameraSubject = M.GetCharacter(target).hum
+end)
+
+AC({"unview", "unspectate", "unwatch"},function()
+	cam.CameraSubject = hum
 end)
 
 
 -- To
-AC({"to"},function(name)
-	local playuh = C.GetPlayerByType(name)
-	if playuh then
-		local rootB = M.GetCharacter(playuh).root
-		root.CFrame = rootB.CFrame
+AC({"to"},function(target)
+	if not target then return end
+	target = M.GetPlayerByType(player, target)
+	if target[2] then return end
+	target = target[1]
+	--local targetroot = M.GetRoot(target) THERE IS NO GETROOT IN MAIN MODULE!!!
+	local rootB = M.GetCharacter(target).root
+	root.CFrame = rootB.CFrame
+end)
+
+
+-- Fling person
+AC({"fling","flingperson","flingplayer"},function(target)
+	if not target then return end
+	local pos = root.Position
+	target = M.GetPlayerByType(player, target)
+	
+	C.RunCmd("ffly")
+	
+	C.CreateTask("FlingPlayer",function()
+		for _, v in pairs(target) do
+			if v == player then continue end
+			C.RunCmd("to",v.Name)
+			C.Connections.TempLoopTo = RunService.Heartbeat:Connect(function()
+				C.RunCmd("to", v.Name)
+			end)
+			task.wait(1)
+			C.Disconnect("TempLoopTo")
+		end
+	end)
+	
+	for _, v in pairs(target) do
+		if v == player then continue end
+		task.wait(1)
 	end
+	
+	C.RunCmd("unfly")
+	C.CancelTask("FlingPlayer")
+	root.CFrame = CFrame.new(pos)
+end)
+
+
+-- Loop to (Yes I literally made this after I really needed to use.)
+AC({"loopto", "lto", "lt"},function(target)
+	if not target then return end
+	target = M.GetPlayerByType(player, target)
+	if target[2] then return end
+	target = target[1]
+	
+	C.Connections.LoopTo = RunService.Heartbeat:Connect(function()
+		C.RunCmd("to", target.Name)
+	end)
+end)
+
+AC({"unloopto","unlto","ulto","unlt","ult"},function()
+	C.Disconnect("LoopTo")
+end)
+
+
+-- Infinite jump
+AC({"infinitejump","infjump","infj"},function()
+	C.Disconnect("Infjump1")
+	C.Disconnect("Infjump2")
+
+	local debounce = false
+
+	-- When jump is requested (works for space & mobile tap)
+	C.Connections.Infjump1 = UserInputService.JumpRequest:Connect(function()
+		if debounce then return end
+		debounce = true
+		C.RunCmd("jump")
+	end)
+
+	-- When the jump input is released (spacebar or mobile lift)
+	C.Connections.Infjump2 = UserInputService.InputEnded:Connect(function(input, gpe)
+		if gpe then return end
+		if input.KeyCode == Enum.KeyCode.Space or input.UserInputType == Enum.UserInputType.Touch then
+			debounce = false
+		end
+	end)
+end)
+
+
+-- Intense spin - Turns on massless for all limbs except for your root. This allows you to not get flinged by your center of mass.
+AC({"intensespin","ispin"},function(speedo)
+	speedo = tonumber(speedo) or 1e5
+	C.Disconnect("IntenseSpin")
+	
+	C.Connections.IntenseSpin = RunService.Stepped:Connect(function()
+		for _, v in pairs(char:GetDescendants()) do
+			if not v:IsA("BasePart") and not v:IsA("Part") and not v:IsA("MeshPart") then continue end
+			v.CanCollide = false
+			v.Massless = true
+		end
+	end)
+	
+	C.RunCmd("spin", speedo)
+end)
+
+AC({"unintensespin","unispin","unisp","uispin"},function()
+	C.Disconnect("IntenseSpin")
 end)

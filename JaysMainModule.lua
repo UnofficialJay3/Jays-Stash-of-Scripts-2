@@ -331,74 +331,6 @@ end
 
 
 
--- Add linear velocity
-function C.AddLinVel(part, state)
-	-- Check if vel is already there
-	local vel = part:FindFirstChild("JAYSSCRIPTSLV")
-	local att = part:FindFirstChild("JAYSSCRIPTSLVATT")
-	if vel or att then
-		vel:Destroy()
-		att:Destroy()
-		vel = nil
-		att = nil
-	end
-	
-	if state then return end
-	
-	local att = Instance.new("Attachment", part)
-	att.Name = "JAYSSCRIPTSLVATT"
-	local vel = Instance.new("LinearVelocity", part)
-	vel.Name = "JAYSSCRIPTSLV"
-	vel.Attachment0 = att
-	vel.MaxForce = 0
-	vel.VectorVelocity = Vector3.zero
-	return vel, att
-end
-
--- Add angular velocity
-function C.AddAngVel(part, state)
-	-- Check if vel is already there
-	local ang = part:FindFirstChild("JAYSSCRIPTSAV")
-	local att = part:FindFirstChild("JAYSSCRIPTSAVATT")
-	if ang or att then
-		ang:Destroy()
-		att:Destroy()
-		ang = nil
-		att = nil
-	end
-
-	if state then return end
-
-	local att = Instance.new("Attachment", part)
-	att.Name = "JAYSSCRIPTSAVATT"
-	local ang = Instance.new("AngularVelocity", part)
-	ang.Name = "JAYSSCRIPTSAV"
-	ang.Attachment0 = att
-	ang.MaxTorque = 0
-	ang.AngularVelocity = Vector3.zero
-	return ang, att
-end
-
--- Linear velocity once
-function C.LinVelOnce(part, velo)
-	local vel, att = C.AddLinVel(part)
-	vel.MaxForce = math.huge
-	vel.VectorVelocity = velo
-	RunService.Heartbeat:Wait()
-	C.AddLinVel(part, true)
-end
-
--- Angular velocity once
-function C.AngVelOnce(part, velo)
-	local vel, att = C.AddAngVel(part)
-	vel.MaxTorque = math.huge
-	vel.AngularVelocity = velo
-	RunService.Heartbeat:Wait()
-	C.AddAngVel(part, true)
-end
-
-
-
 -- Get move vector
 local PlayerModule = Players.LocalPlayer:WaitForChild("PlayerScripts"):WaitForChild("PlayerModule")
 local ControlModule = require(PlayerModule:WaitForChild("ControlModule"))
@@ -428,4 +360,84 @@ function C.IsKeyDown(key)
 	if not key then return end
 	key = UserInputService:IsKeyDown(key)
 	return key
+end
+
+
+-- Apply Linear Velocity
+function C.AppLinVel(part, name)
+	-- Your up to change these on your OWN!
+	if not part then return end
+	local att = Instance.new("Attachment",part)
+	att.Name = name .. "Att"
+	local lv = Instance.new("LinearVelocity",part)
+	lv.Name = name .. "LinVel"
+	lv.Attachment0 = att
+	lv.MaxForce = 0
+	lv.VectorVelocity = Vector3.zero
+	return lv, att
+end
+
+-- Apply + modify Linear Velocity
+function C.AppModLinVel(part, name, max, vel)
+	local lv, att = C.AppLinVel(part, name)
+	lv.MaxForce = max
+	lv.VectorVelocity = vel
+	return lv, att
+end
+
+-- Apply Angular Velocity
+function C.AppAngVel(part, name)
+	if not part then return end
+	local att = Instance.new("Attachment",part)
+	att.Name = name .. "Att"
+	local av = Instance.new("AngularVelocity",part)
+	av.Name = name .. "AngVel"
+	av.Attachment0 = att
+	av.MaxTorque = 0
+	av.AngularVelocity = Vector3.zero
+	return av, att
+end
+
+-- Apply + modify Angular Velocity
+function C.AppModAngVel(part, name, max, vel)
+	local av, att = C.AppAngVel(part, name)
+	av.MaxTorque = max
+	av.AngularVelocity = vel
+	return av, att
+end
+
+-- Apply Linear Velocity ONCE
+function C.AppOnceLinVel(part, name, max, vel, timo)
+	local lv, att = C.AppModLinVel(part, name, max, vel)
+	if timo then
+		task.wait(timo)
+		lv:Destroy()
+		att:Destroy()
+		lv = nil
+		att = nil
+	else
+		RunService.Heartbeat:Wait()
+		lv:Destroy()
+		att:Destroy()
+		lv = nil
+		att = nil
+	end
+end
+
+-- Apply Angular Velocity ONCE
+function C.AppOnceAngVel(part, name, max, vel, timo)
+	local av, att = C.AppModAngVel(part, name, max, vel)
+	if timo then
+		task.wait(timo)
+		av:Destroy()
+		att:Destroy()
+		av = nil
+		att = nil
+	else
+		RunService.Heartbeat:Wait()
+		av:Destroy()
+		att:Destroy()
+		av = nil
+		att = nil
+	end
 end
