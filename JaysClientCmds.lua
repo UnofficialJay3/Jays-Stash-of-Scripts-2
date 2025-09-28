@@ -1,7 +1,5 @@
 -- Scripted by ROBLOX: @IlIl_ILovAltAccsHAHA / ・゠314・一一一非公式ジェイ一一一・・ - Unofficial Jay | GITHUB: @UnofficialJay3
 -- This script is highly unstable since this is tested ONLY in studio, sometimes with real clients.
--- My attempts at making command toggles are really trashy right now 😢
--- This is the re-write.
 
 -- Script init
 -- Script grabber
@@ -24,8 +22,8 @@ local function ScriptGrabber(name, link)
 	return scipt
 end
 
-local M = ScriptGrabber("JaysMainModule", "https://raw.githubusercontent.com/UnofficialJay3/Jays-Stash-of-Scripts-2/refs/heads/main/JaysMainModule.lua")
-local Fly = ScriptGrabber("JaysFlyin", "https://raw.githubusercontent.com/UnofficialJay3/Jays-Stash-of-Scripts-2/refs/heads/main/JaysFlyin.lua")
+local M = ScriptGrabber("JaysMainModule", "https://github.com/UnofficialJay3/Jays-Stash-of-Scripts-2/raw/refs/heads/main/JaysMainModule.lua")
+local Fly = ScriptGrabber("JaysFlyin", "https://github.com/UnofficialJay3/Jays-Stash-of-Scripts-2/raw/refs/heads/main/JaysFlyin.lua")
 if not M then return end
 
 -- Add script
@@ -651,35 +649,133 @@ AC({"to"},function(target)
 end)
 
 
--- Fling person
-AC({"fling","flingperson","flingplayer"},function(target)
+---- Fling person old
+--AC({"fling","flingperson","flingplayer"},function(target)
+--	if not target then return end
+--	local pos = root.Position
+--	target = M.GetPlayerByType(player, target)
+	
+--	C.RunCmd("ffly")
+	
+--	C.CreateTask("FlingPlayer",function()
+--		for _, v in pairs(target) do
+--			if v == player then continue end
+--			C.RunCmd("to",v.Name)
+--			C.Connections.TempLoopTo = RunService.Heartbeat:Connect(function()
+--				C.RunCmd("to", v.Name)
+--				root.CFrame = CFrame.new(root.Position + Vector3.new(0,-1,0)) * (root.CFrame - root.CFrame.Position)
+--			end)
+--			task.wait(1.5)
+--			C.Disconnect("TempLoopTo")
+--		end
+--	end)
+	
+--	for _, v in pairs(target) do
+--		if v == player then continue end
+--		task.wait(1.5)
+--	end
+	
+--	C.RunCmd("unfly")
+--	C.CancelTask("FlingPlayer")
+--	root.CFrame = CFrame.new(pos)
+--end)
+
+AC({"fling","flingperson","flingplayer"}, function(target, timo, predict) -- new new! Prediction stuff by chatgpt gluh.
 	if not target then return end
 	local pos = root.Position
 	target = M.GetPlayerByType(player, target)
-	
+
 	C.RunCmd("ffly")
-	
-	C.CreateTask("FlingPlayer",function()
+
+	task.spawn(function()
 		for _, v in pairs(target) do
 			if v == player then continue end
-			C.RunCmd("to",v.Name)
+
+			local targetRoot = v.Character and v.Character:FindFirstChild("HumanoidRootPart")
+			if not targetRoot then continue end
+
+			-- how much prediction time to add (tweak this)
+			local predictionTime = tonumber(predict) or 0.43 -- I'll be honest I don't know if this prediction thing would work.
+			-- Note2 I think it works welly I guess...?
+
 			C.Connections.TempLoopTo = RunService.Heartbeat:Connect(function()
-				C.RunCmd("to", v.Name)
+				if not targetRoot.Parent then return end
+
+				-- predict where they’ll be
+				local predicted = targetRoot.Position + targetRoot.AssemblyLinearVelocity * predictionTime
+				local predictedCF = CFrame.new(predicted, predicted + targetRoot.CFrame.LookVector)
+
+				-- lock onto that spot
+				root.CFrame = predictedCF
 			end)
-			task.wait(1)
+
+			task.wait(tonumber(timo) or 1.5)
 			C.Disconnect("TempLoopTo")
 		end
+		
+		C.RunCmd("unfly")
+		-- meh
+		root.CFrame = CFrame.new(pos)
 	end)
-	
-	for _, v in pairs(target) do
-		if v == player then continue end
-		task.wait(1)
-	end
-	
-	C.RunCmd("unfly")
-	C.CancelTask("FlingPlayer")
-	root.CFrame = CFrame.new(pos)
 end)
+
+--AC({"fling","flingperson","flingplayer"}, function(target, timo, predict, skipVel)
+--	if not target then return end
+--	local pos = root.Position
+--	target = M.GetPlayerByType(player, target)
+
+--	C.RunCmd("ffly")
+
+--	task.spawn(function()
+--		local activeConns = {} -- store per-player connections
+--		for _, v in pairs(target) do
+--			if v == player then continue end
+
+--			local targetRoot = v.Character and v.Character:FindFirstChild("HumanoidRootPart")
+--			if not targetRoot then continue end
+
+--			local predictionTime = tonumber(predict) or 0.43
+--			local skipVelocityCheck = (skipVel ~= "false")
+
+--			-- make a unique connection for this target
+--			activeConns[v] = RunService.Heartbeat:Connect(function()
+--				if not targetRoot.Parent then return end
+
+--				-- velocity checks
+--				if skipVelocityCheck then
+--					local linVel = targetRoot.AssemblyLinearVelocity.Magnitude
+--					local angVel = targetRoot.AssemblyAngularVelocity.Magnitude
+--					if linVel > 500 or angVel > 500 then
+--						-- just stop THIS target, not others
+--						if activeConns[v] then
+--							activeConns[v]:Disconnect()
+--							activeConns[v] = nil
+--						end
+--						return
+--					end
+--				end
+
+--				-- predict
+--				local predicted = targetRoot.Position + targetRoot.AssemblyLinearVelocity * predictionTime
+--				local predictedCF = CFrame.new(predicted, predicted + targetRoot.CFrame.LookVector)
+
+--				root.CFrame = predictedCF
+--			end)
+--		end
+
+--		-- wait then clean up
+--		task.wait(tonumber(timo) or 1.5)
+--		--task.wait(0.25)
+--		for _, conn in pairs(activeConns) do
+--			if conn then conn:Disconnect() end
+--		end
+
+--		C.RunCmd("unfly")
+--		root.CFrame = CFrame.new(pos)
+--	end)
+--end)
+
+
 
 
 -- Loop to (Yes I literally made this after I really needed to use.)
@@ -819,49 +915,35 @@ end)
 
 
 -- Invisible | The best and worst programmer ME >B)
-local invisatt
-local invislv
-local invisav
 AC({"invisible","invis"},function()
-	print("INVISIBLE COMMAND IS VERY BUGGY!!! USE AT YOUR OWN RISK HERE BUDDY!")
 	C.Disconnect("Invisible")
+	--C.RunCmd("unfaker")
+	local cf = realChar:FindFirstChild("HumanoidRootPart").CFrame
+
+	realChar:FindFirstChild("HumanoidRootPart").CFrame = CFrame.new(Vector3.one*1e3)
+	
+	task.wait(0.1)
+	
+	realChar:FindFirstChild("HumanoidRootPart").Anchored = true -- I keep ignoring this.
+	print("INVISIBLE COMMAND IS VERY BUGGY!!! USE AT YOUR OWN RISK HERE BUDDY!")
 	
 	C.RunCmd("faker")
 	
-	invisatt = Instance.new("Attachment",realChar:FindFirstChild("HumanoidRootPart"))
-	invislv = Instance.new("LinearVelocity",realChar:FindFirstChild("HumanoidRootPart"))
-	invisav = Instance.new("AngularVelocity",realChar:FindFirstChild("HumanoidRootPart"))
+	fakeChar:WaitForChild("HumanoidRootPart").CFrame = cf
 	
-	invislv.Attachment0 = invisatt
-	invisav.Attachment0 = invisatt
 	
-	invislv.MaxForce = math.huge
-	invislv.VectorVelocity = Vector3.zero
+	for _, v in pairs(fakeChar:WaitForChild("HumanoidRootPart"):GetChildren()) do
+		if not v:IsA("LinearVelocity") and not v:IsA("AngularVelocity") then continue end
+		v:Destroy()
+	end
 	
-	invisav.MaxTorque = math.huge
-	invisav.AngularVelocity = Vector3.zero
-	
-	task.wait(0.1)
-	C.Connections.Invisible = RunService.Heartbeat:Connect(function()
-		local rooto = realChar:FindFirstChild("HumanoidRootPart")
-		--if not rooto then return end
-		rooto.CFrame = CFrame.new(Vector3.one*1e10)
-		rooto.AssemblyLinearVelocity = Vector3.zero
-		rooto.AssemblyAngularVelocity = Vector3.zero
-	end)
-	--task.wait(1)
-	--cam.CameraSubject = realChar.Humanoid
+	fakeChar:FindFirstChild("HumanoidRootPart").Anchored = false
 end)
 
 AC({"visible","vis"},function()
 	C.Disconnect("Invisible")
 	C.RunCmd("unfaker")
-	invisatt:Destroy()
-	invislv:Destroy()
-	invisav:Destroy()
-	invisatt = nil
-	invislv = nil
-	invisav = nil
+	realChar:FindFirstChild("HumanoidRootPart").Anchored = false
 end)
 
 
@@ -873,6 +955,7 @@ AC({"walkfling","wfling"},function(intensity)
 	C.Disconnect("WalkFling")
 	C.RunCmd("faker")
 	C.NoclipChar(realChar)
+	C.NoclipChar(fakeChar)
 	
 	wflingatt = Instance.new("Attachment",realChar:FindFirstChild("HumanoidRootPart"))
 	wflinglv = Instance.new("LinearVelocity",realChar:FindFirstChild("HumanoidRootPart"))
@@ -965,4 +1048,28 @@ AC({"jumpscare","js"},function()
 	C.RunCmd("vis")
 	task.wait(0.5)
 	C.RunCmd("invis")
+end)
+
+
+-- Test anti-fling
+AC({"testantifling"},function()
+	local cf = root.CFrame
+	local lv, att = M.AppModLinVel(root, "TestFling", math.huge, Vector3.zero)
+	
+	C.Connections.TestAntiFling = RunService.Stepped:Connect(function()
+		root.CFrame = cf
+		root.AssemblyLinearVelocity = Vector3.zero
+		
+		for _, v in pairs(char:GetDescendants()) do
+			if not v:IsA("BasePart") and not v:IsA("Part") and not v:IsA("MeshPart") then continue end
+			v.CanCollide = false
+			v.Massless = true
+		end
+	end)
+end)
+
+
+-- Test anti-fling 2
+AC({"testantifling2"},function()
+	root.Anchored = true -- Hmmm
 end)
