@@ -649,36 +649,6 @@ AC({"to"},function(target)
 end)
 
 
----- Fling person old
---AC({"fling","flingperson","flingplayer"},function(target)
---	if not target then return end
---	local pos = root.Position
---	target = M.GetPlayerByType(player, target)
-	
---	C.RunCmd("ffly")
-	
---	C.CreateTask("FlingPlayer",function()
---		for _, v in pairs(target) do
---			if v == player then continue end
---			C.RunCmd("to",v.Name)
---			C.Connections.TempLoopTo = RunService.Heartbeat:Connect(function()
---				C.RunCmd("to", v.Name)
---				root.CFrame = CFrame.new(root.Position + Vector3.new(0,-1,0)) * (root.CFrame - root.CFrame.Position)
---			end)
---			task.wait(1.5)
---			C.Disconnect("TempLoopTo")
---		end
---	end)
-	
---	for _, v in pairs(target) do
---		if v == player then continue end
---		task.wait(1.5)
---	end
-	
---	C.RunCmd("unfly")
---	C.CancelTask("FlingPlayer")
---	root.CFrame = CFrame.new(pos)
---end)
 
 AC({"fling","flingperson","flingplayer"}, function(target, timo, predict) -- new new! Prediction stuff by chatgpt gluh.
 	if not target then return end
@@ -718,63 +688,6 @@ AC({"fling","flingperson","flingplayer"}, function(target, timo, predict) -- new
 		root.CFrame = CFrame.new(pos)
 	end)
 end)
-
---AC({"fling","flingperson","flingplayer"}, function(target, timo, predict, skipVel)
---	if not target then return end
---	local pos = root.Position
---	target = M.GetPlayerByType(player, target)
-
---	C.RunCmd("ffly")
-
---	task.spawn(function()
---		local activeConns = {} -- store per-player connections
---		for _, v in pairs(target) do
---			if v == player then continue end
-
---			local targetRoot = v.Character and v.Character:FindFirstChild("HumanoidRootPart")
---			if not targetRoot then continue end
-
---			local predictionTime = tonumber(predict) or 0.43
---			local skipVelocityCheck = (skipVel ~= "false")
-
---			-- make a unique connection for this target
---			activeConns[v] = RunService.Heartbeat:Connect(function()
---				if not targetRoot.Parent then return end
-
---				-- velocity checks
---				if skipVelocityCheck then
---					local linVel = targetRoot.AssemblyLinearVelocity.Magnitude
---					local angVel = targetRoot.AssemblyAngularVelocity.Magnitude
---					if linVel > 500 or angVel > 500 then
---						-- just stop THIS target, not others
---						if activeConns[v] then
---							activeConns[v]:Disconnect()
---							activeConns[v] = nil
---						end
---						return
---					end
---				end
-
---				-- predict
---				local predicted = targetRoot.Position + targetRoot.AssemblyLinearVelocity * predictionTime
---				local predictedCF = CFrame.new(predicted, predicted + targetRoot.CFrame.LookVector)
-
---				root.CFrame = predictedCF
---			end)
---		end
-
---		-- wait then clean up
---		task.wait(tonumber(timo) or 1.5)
---		--task.wait(0.25)
---		for _, conn in pairs(activeConns) do
---			if conn then conn:Disconnect() end
---		end
-
---		C.RunCmd("unfly")
---		root.CFrame = CFrame.new(pos)
---	end)
---end)
-
 
 
 
@@ -952,6 +865,7 @@ local wflingatt
 local wflinglv
 local wflingav
 AC({"walkfling","wfling"},function(intensity)
+	C.RunCmd("af")
 	C.Disconnect("WalkFling")
 	C.RunCmd("faker")
 	C.NoclipChar(realChar)
@@ -984,6 +898,7 @@ AC({"walkfling","wfling"},function(intensity)
 end)
 
 AC({"unwalkfling","unwfling","uwfling"},function()
+	C.RunCmd("uaf")
 	C.Disconnect("WalkFling")
 	wflingav.AngularVelocity = Vector3.zero
 	wflinglv.VectorVelocity = Vector3.zero
@@ -1073,3 +988,216 @@ end)
 AC({"testantifling2"},function()
 	root.Anchored = true -- Hmmm
 end)
+
+
+-- Antifling
+AC({"antifling","noplrcollisions","npc","af"},function()
+	if C.Connections.AntiFling then
+		C.Disconnect("AntiFling")
+	end
+	
+	C.Connections.AntiFling = RunService.Stepped:Connect(function()
+		for _, v in pairs(Players:GetPlayers()) do
+			if v == Players.LocalPlayer then continue end
+			local charlo = v.character
+			if not charlo then continue end
+			for _, v in pairs(charlo:GetDescendants()) do
+				if not v:IsA("BasePart") and not v:IsA("Part") and not v:IsA("MeshPart") then continue end
+				v.CanCollide = false
+			end
+		end
+	end)
+end)
+
+
+-- Unantifling
+AC({"unantifling","uantifling","uaf","plrcollisions","pc"},function()
+	if C.Connections.AntiFling then
+		C.Disconnect("AntiFling")
+	end
+	
+	for _, v in pairs(Players:GetPlayers()) do
+		if v == Players.LocalPlayer then continue end
+		local charlo = v.character
+		if not charlo then continue end
+		C.ClipChar(charlo)
+	end
+end)
+
+
+
+-- TEST To direction
+AC({"ttd","ttod","ttodirection"}, function(dir, offset, index)
+	local part = workspace.PEAK
+	local basePos = part.Position
+	local distance = (offset or 4) * (index or 1)
+
+	-- Get direction vector relative to part
+	local dir = string.lower(dir or "f")
+	local vec
+	if dir == "f" or dir == "forward" then
+		vec = part.CFrame.LookVector
+	elseif dir == "b" or dir == "backward" then
+		vec = -part.CFrame.LookVector
+	elseif dir == "r" or dir == "right" then
+		vec = part.CFrame.RightVector
+	elseif dir == "l" or dir == "left" then
+		vec = -part.CFrame.RightVector
+	elseif dir == "u" or dir == "up" then
+		vec = part.CFrame.UpVector
+	elseif dir == "d" or dir == "down" then
+		vec = -part.CFrame.UpVector
+	else
+		vec = part.CFrame.LookVector -- default forward
+	end
+
+	-- Offset relative to rotation
+	local targetPos = basePos + (vec * distance)
+
+	root.CFrame = CFrame.new(targetPos, targetPos + part.CFrame.LookVector)
+end)
+
+
+-- REAL to direction
+AC({"td","tod","todirection"}, function(target, dir, offset, index)
+	if not target then return end
+	target = M.GetPlayerByType(player, target)
+	if target[2] then return end
+	target = target[1]
+	target = target.Character or target.CharacterAdded:Wait()
+	local rootB = target:WaitForChild("HumanoidRootPart")
+	if not rootB then return end
+	
+	local part = rootB
+	local basePos = part.Position
+	local distance = (offset or 4) * (index or 1)
+
+	-- Get direction vector relative to part
+	local dir = string.lower(dir or "f")
+	local vec
+	if dir == "f" or dir == "forward" then
+		vec = part.CFrame.LookVector
+	elseif dir == "b" or dir == "backward" then
+		vec = -part.CFrame.LookVector
+	elseif dir == "r" or dir == "right" then
+		vec = part.CFrame.RightVector
+	elseif dir == "l" or dir == "left" then
+		vec = -part.CFrame.RightVector
+	elseif dir == "u" or dir == "up" then
+		vec = part.CFrame.UpVector
+	elseif dir == "d" or dir == "down" then
+		vec = -part.CFrame.UpVector
+	else
+		vec = part.CFrame.LookVector -- default forward
+	end
+
+	-- Offset relative to rotation
+	local targetPos = basePos + (vec * distance)
+
+	root.CFrame = CFrame.new(targetPos, targetPos + part.CFrame.LookVector)
+end)
+
+
+-- Loop to direction
+local LTDLV = nil
+local LTDATT = nil
+AC({"ltd","ltod","ltodirection"},function(target,dir,offset,index)
+	if C.Connections.LoopToDirection then
+		C.Disconnect("LoopToDirection")
+		pcall(function()
+			LTDLV:Destroy()
+			LTDLV = nil
+			LTDATT:Destroy()
+			LTDATT = nil
+		end)
+	end
+	
+	LTDLV, LTDATT = M.AppModLinVel(root, "LTD", math.huge, Vector3.zero)
+
+	C.Connections.LoopToDirection = RunService.Heartbeat:Connect(function()
+		local cmdStr = string.format("td %s %s %s %s", target or "", dir or "f", offset or "4", index or "1")
+		C.RunCmdStr(cmdStr)
+	end)
+end)
+
+
+
+-- Unloop to direction
+AC({"ultd","ultod","ultodirection"},function()
+	C.Disconnect("LoopToDirection")
+	pcall(function()
+		LTDLV:Destroy()
+		LTDLV = nil
+		LTDATT:Destroy()
+		LTDATT = nil
+	end)
+end)
+
+
+-- Dances system -- If it looks ai-ed then it is because I am too lazy to search for the dances.
+local DanceTracks = {} -- store current tracks
+
+-- Animation IDs for R6 and R15
+local Dances = {
+	R6 = {
+		[1] = 182435998,   -- dance1 R6
+		[2] = 182436842,   -- dance2 R6
+		[3] = 182436935,   -- dance3 R6
+	},
+	R15 = {
+		[1] = 507771019,   -- dance1 R15
+		[2] = 507776043,   -- dance2 R15
+		[3] = 507777268,   -- dance3 R15
+	},
+}
+
+-- Helper to get humanoid + rig type
+local function GetHumanoidAndRig()
+	local char = player.Character
+	if not char then return end
+	local hum = char:FindFirstChildOfClass("Humanoid")
+	if not hum then return end
+	local rig = hum.RigType == Enum.HumanoidRigType.R15 and "R15" or "R6"
+	return hum, rig
+end
+
+-- Play dance
+local function PlayDance(i)
+	local hum, rig = GetHumanoidAndRig()
+	if not hum then return end
+
+	-- stop current if one is playing
+	if DanceTracks[hum] then
+		DanceTracks[hum]:Stop()
+		DanceTracks[hum] = nil
+	end
+
+	local animId = Dances[rig][i]
+	if not animId then return end
+
+	local anim = Instance.new("Animation")
+	anim.AnimationId = "rbxassetid://" .. animId
+
+	local track = hum:LoadAnimation(anim)
+	track.Priority = Enum.AnimationPriority.Action
+	track.Looped = true
+	track:Play()
+
+	DanceTracks[hum] = track
+end
+
+-- Stop dance
+local function StopDance()
+	local hum, _ = GetHumanoidAndRig()
+	if not hum then return end
+	if DanceTracks[hum] then
+		DanceTracks[hum]:Stop()
+		DanceTracks[hum] = nil
+	end
+end
+
+-- Commands
+AC({"d1","dance1"}, function() PlayDance(1) end)
+AC({"d2","dance2"}, function() PlayDance(2) end)
+AC({"d3","dance3"}, function() PlayDance(3) end)
+AC({"und","undance"}, function() StopDance() end)
