@@ -1,1203 +1,1002 @@
--- Scripted by ROBLOX: @IlIl_ILovAltAccsHAHA / ・゠314・一一一非公式ジェイ一一一・・ - Unofficial Jay | GITHUB: @UnofficialJay3
--- This script is highly unstable since this is tested ONLY in studio, sometimes with real clients.
-
 -- Script init
--- Script grabber
-local function ScriptGrabber(name, link)
-	local scipt = _G[name]
-	
-	if not scipt then
-		local s = pcall(function()
-			loadstring(game:HttpGet(link))()
+local Z
+-- Get module
+local function GetModule(name,url)
+	print("Searching module",name..":")
+	print("	Searching module directly...")
+	local m = _G[name]
+	if not m then
+		warn("	Failed from direct.")
+		print("	Searching module with url...")
+		local s,r = pcall(function()
+			loadstring(game:HttpGet(url))()
 		end)
 		if s then
-			scipt = _G[name]
+			print("Success from url!\n")
+			m = _G[name]
+			return m
 		else
-			warn("Can't find and get " .. name .. " will now be exitting...")
+			warn("	Failed from url:",r)
 			return
 		end
 	end
-	
-	print("Fetched script " .. name .. "!")
-	return scipt
+	print("Success from direct!\n")
+	return m
 end
+local UniService = GetModule("JaysUniService")
+local FlyService = GetModule("JaysFlyinService")
+--Self init
+local ModuleName = "JaysClientCmds"
+local M = {}
+_G[ModuleName] = M
+UniService.InitModule(M,ModuleName)
+local Conns = M.Tasks
+local Tasks = M.Conns
 
-local M = ScriptGrabber("JaysMainModule", "https://github.com/UnofficialJay3/Jays-Stash-of-Scripts-2/raw/refs/heads/main/JaysMainModule.lua")
-local Fly = ScriptGrabber("JaysFlyin", "https://github.com/UnofficialJay3/Jays-Stash-of-Scripts-2/raw/refs/heads/main/JaysFlyin.lua")
-if not M then return end
-
--- Add script
-local C, sKey = M.AddScript("JaysClientCmds")
 
 
-
--- Configurations
-C.Key = "semicolon" -- The key to open the prompter
-C.AllowCmdChatting = true -- Allow for commands to be runned in the chat.
-C.Prefixes = {";", ":", "!", "/"} -- The prefixes for commands in chat.
-local PrintCmds = false -- Prints all the commands and also how many commands are there
+-- Configuration
+M.Keybind = "Semicolon" -- Needs capilization pls
+M.OldSchool = true -- The "Old school" way of the bar.
+M.Debugwebug = false -- Gotta debug what's a webug!
+M.EmoteOnCmd = true -- If no other command works than try to use it as a emote I guess.
 
 
 
 -- Main init
 -- Services
-local Z = M.Services
-local UserInputService, RunService, TextChatService, Players = Z.UserInputService, Z.RunService, Z.TextChatService, Z.Players
+Z = UniService.Services
+local CAS, RunService, UIS, Players  = Z.CAS, Z.RunService, Z.UIS, Z.Players
 
 -- Variables
-Z = M.GetLocalCharacter()
-local player, char, root, hum = Z.player, Z.char, Z.root, Z.hum
-C.Connections = {} -- The connections table
-C.Tasks = {} -- The tasks table like task.spawn()
-C.Commands = {} -- The table that stores the commands name and the function
+local player, plrgui, char, hum, root = UniService.GetChar(game.Players.LocalPlayer,true)
+local BarActive = false
+local BIS = UniService.BIS
+local AnimService = UniService.AnimService
+M.Cmds = {}
 local cam = workspace.CurrentCamera
 
-function C.Disconnect(conn)
-	if typeof(conn) == "string" then
-		local c = C.Connections[conn]
-		if c then
-			c:Disconnect()
-			C.Connections[conn] = nil
+local function OnDied()
+	local D = M.Disconn
+	D(Conns.SitFlyConn)
+	D(Conns.JumpConn)
+	D(Conns.InfWalkSpeed)
+	D(Conns.CFrameWalkConn)
+	D(Conns.NoclipConn)
+	D(Conns.InvisibleConn)
+	D(Conns.FakerConn)
+	D(Conns.FlingConn0)
+	D(Conns.FlingConn)
+	--D(Conns.FlingConn1)
+	M.SpinAV = nil
+	M.SpinA = nil
+end
+local function OnChar()
+	player, plrgui, char, hum, root = UniService.GetChar(game.Players.LocalPlayer,true)
+	hum.Died:Connect(OnDied)
+end
+player.CharacterAdded:Connect(OnChar)
+hum.Died:Connect(OnDied)
+
+
+
+
+-- The main lane is back yet again.
+
+
+
+-- Open close bar thinggy
+local function OpenCloseBar(_,state)
+	if state ~= Enum.UserInputState.Begin then return end
+	BarActive = not BarActive
+	if M.OldSchool then -- Easy, UniService got my back, but just not GOOD!
+		if M.Debugwebug then print("Bar activated from OldSchool.") end
+		if BarActive then
+			BarActive = true
+			local box = BIS.Start("JS - Jays Client Cmds", "JaysScripts - Old school box which is bad and for testing.", "Type a command.")
+			box.FocusLost:Connect(function(ep)
+				if not ep then BarActive = false return end
+				local str = box.Text
+				if str ~= "" then
+					M.RunString(str)
+				end
+				BarActive = false
+			end)
 		end
 		return
 	end
-	if conn then
-		conn:Disconnect()
-	end
 end
-function C.CancelTask(taskOrName)
-	local thread
 
-	if typeof(taskOrName) == "string" then
-		thread = C.Tasks[taskOrName]
-		if thread then
-			C.Tasks[taskOrName] = nil
+CAS:BindAction("OpenCloseBar",OpenCloseBar,false,Enum.KeyCode[M.Keybind])
+
+function M.ForceQuit()
+		warn("Force quitted module",ModuleName)
+		-- Initiate shutdown other stuff
+		for _,c in pairs(M.Conns) do
+			M.Disconn(c)
 		end
-	elseif typeof(taskOrName) == "thread" then
-		thread = taskOrName
-		for name, t in pairs(C.Tasks) do
-			if t == thread then
-				C.Tasks[name] = nil
+		for _,t in pairs(M.Tasks) do
+			M.CloseTask(t)
+		end
+		-- Unbind OpenClsoeBar acrtion
+		CAS:UnbindAction("OpenCloseBar")
+		-- Initiate real shutdown
+		_G[ModuleName] = nil -- WOW!
+	end
+
+
+
+-- Run command
+function M.RunCmd(n,...)
+	local q = 0
+	if M.Debugwebug then print("Searching command",n.."...") end
+	n = n:lower()
+	local cmd = M.Cmds[n] -- Search directly
+	if not cmd then -- If fails then look at aliases
+		if M.Debugwebug then print("	Failed but searching aliases...") end
+		for i,v in pairs(M.Cmds) do
+			if table.find(v.a,n) then
+				if M.Debugwebug then print("Found command!",i,"with alias",n) end
+				cmd = M.Cmds[i]
 				break
 			end
+			if M.Debugwebug then print("	Current cmd:",i,"aliases:",table.concat(v.a,", ")) end
+			q += #v.a + 1
 		end
+		if M.Debugwebug then print("Total searches:",q) end
+		if not cmd then
+			warn("Failed to find command with name",n)
+			if M.EmoteOnCmd then pcall(function() AnimService.PlayEmote(tostring(n))end) end
+			return
+		end
+	else
+		if M.Debugwebug then print("	Found directly!") end
 	end
-
-	-- If we got a valid thread, cancel it
-	if thread and coroutine.status(thread) ~= "dead" then
-		task.cancel(thread)
-	end
+	if M.Debugwebug then print("Ran command",n) end
+	cmd.f(...)
 end
 
-function C.CreateTask(name, func)
-	local thread = coroutine.create(func)
-	C.Tasks[name] = thread
-	task.spawn(thread)
+-- Run string
+function M.RunString(str)
+	local cmd, args = UniService.GetCmd(str)
+	M.RunCmd(cmd,unpack(args))
 end
 
--- Reset-tation   
-local function Reset2()
-	-- Disconnect stuff
-	local Z = C.Connections
-	local z = C.Tasks
 
-	local function AttemptDisconnect(n)
-		pcall(function()
-			C.Disconnect(Z[n])
-		end)
-	end
-	local function AttemptCancellation(n)
-		pcall(function()
-			C.CancelTask(z[n])
-		end)
-	end
 
-	AttemptCancellation("Test2")
-	AttemptDisconnect("Noclip")
-	AttemptDisconnect("GeneralFling")
-	AttemptDisconnect("CFrameWalk")
-	AttemptDisconnect("Respawnation")
-	AttemptCancellation("FlingPlayer")
-	AttemptDisconnect("TempLoopTo")
-	AttemptDisconnect("IntenseSpin")
-	AttemptDisconnect("Infjump1")
-	AttemptDisconnect("Infjump2")
-	AttemptDisconnect("LoopTo")
-	AttemptDisconnect("TempLoopTo")
-	AttemptDisconnect("Respawnation")
-	AttemptDisconnect("Invisible")
-	AttemptDisconnect("WalkFling")
-	AttemptDisconnect("Invisible")
-	AttemptDisconnect("IntenseSpin")
-
-	-- AttemptDisconnect("Connection")
-end
-local function Reset()
-	Z = M.GetLocalCharacter()
-	player, char, root, hum = Z.player, Z.char, Z.root, Z.hum
-	
-	hum.Died:Connect(Reset2)
-end
-
-player.CharacterAdded:Connect(Reset)
-hum.Died:Connect(Reset2)
+--
 
 
 
--- Did you know that to get to the main lane you gotta 1: Get the JaysMainModule script for utilities, 2: Add the script to _G, 3: Set up the main init and BOOM!
-
-
-
--- Add command function
-function C.AddCmd(name, func)
-	for _, n in pairs(name) do
-		C.Commands[n] = func
-	end
-	if PrintCmds then
-		local function DictCount(dict)
-			local c = 0
-			for _ in pairs(dict) do
-				c += 1
+-- THEE COMMANDS...
+M.Cmds = {
+	test = {
+		a = {"test","testlol","testerm","what"}, -- Aliases yes you have to put the original name at the start.
+		d = "This is a description", -- Description
+		f = function(...) -- Function
+			print("Test command ran SUCCESSFULLY!!!")
+			print(table.concat({...}," "))
+		end
+	},
+	template = {
+		a = {"template67"}, -- Aliases yes you have to put the original name at the start.
+		d = "This is a template", -- Description
+		f = function(...) -- Function
+			print("Test command ran SUCCESSFULLY!!!")
+			print(table.concat({...}," "))
+		end
+	},
+	print = {
+		a = {}, -- Aliases yes you have to put the original name at the start.
+		d = "Prints something in console.", -- Description
+		f = function(...) -- Function
+			print(table.concat({...}," "))
+		end
+	},
+	kill = {
+		a = {"oof","die","kms","re"},
+		d = "Oofs you...",
+		f = function()
+			hum.Health = -math.huge
+			local head = char:FindFirstChild("Head")
+			if head then head:Destroy() end
+		end
+	},
+	velocity = {
+		a = {},
+		d = "Flings you around! with corresponding Vector3",
+		f = function(x,y,z)
+			x = tonumber(x) or 0
+			y = tonumber(y) or 0
+			z = tonumber(z) or 0
+			UniService.OnceLinVel(root,Vector3.new(x,y,z))
+			UniService.OnceAngVel(root,Vector3.new(-z,y,-x))
+		end
+	},
+	localfling = {
+		a = {},
+		d = "Flings you around! with corresponding Vector3",
+		f = function()
+			hum.PlatformStand = true
+			local x = math.random(-300,300)
+			local y = math.random(-100,100)
+			local z = math.random(-300,300)
+			M.RunCmd("velocity",tostring(x),tostring(y),tostring(z))
+		end
+	},
+	respawnposition = {
+		a = {"respawnp","rep"}, -- Aliases yes you have to put the original name at the start.
+		d = "Respawns you and teleports you back where you respawned.", -- Description
+		f = function() -- Function
+			local pos = root.Position
+			M.RunCmd("re")
+			M.Conns.RespawnPosition = player.CharacterAdded:Connect(function(char)
+				wait(0)
+				UniService.GetChar().root.CFrame = CFrame.new(pos)
+				M:Disconn(M.Conns.RespawnPosition)
+			end)
+		end
+	},
+	globaltable = {
+		a = {"gtable","gb"}, -- Aliases yes you have to put the original name at the start.
+		d = "Dumps the whole _G / global table into console.", -- Description
+		f = function(...) -- Function
+			UniService.DumpTable(_G,"_G")
+		end
+	},
+	fly = {
+		a = {},
+		d = "Enables you to fly!",
+		f = function(speed)
+			FlyService.ChangeSettings({
+				Speed = speed or FlyService.DefaultSpeed or 50,
+				CF = false,
+				Plat = true,
+				Anim = true,
+				Ang = true,
+				Rot = true
+			})
+			if speed then
+				FlyService.DefaultSpeed = speed
 			end
-			return c
+			FlyService.Activate()
 		end
-		print("Added command:", table.concat(name, ", "), "| Cmd counter:", DictCount(C.Commands))
-	end
-end
-local AC = C.AddCmd -- Shorter because YEEEESSS!
-
-
-
--- Run command function
-function C.RunCmd(name, ...)
-	name = name:lower()
-	local cmd = C.Commands[name]
-	
-	if cmd then
-		cmd(...)
-	end
-end
-
-
-
--- Run command with string
-function C.RunCmdStr(str)
-	local cmd, args = M.GetCmd(str)
-	C.RunCmd(cmd, unpack(args))
-end
-
-
-
--- Prompter
-function C.Prompter()
-	local box = M.Prompter("JS - JaysClientCmds")
-	task.wait()
-	box.FocusLost:Connect(function(ep)
-		if ep then
-			local text = box.Text:match("^%s*(.-)%s*$")
-			C.RunCmdStr(text)
+	},
+	unfly = {
+		a = {},
+		d = "Disables you to fly.",
+		f = function()
+			M.Disconn(Conns.SitFlyConn)
+			FlyService.Deactivate()
 		end
-	end)
-end
-
-
-
--- Input handler
-UserInputService.InputBegan:Connect(function(inp, gp)
-	if gp then return end
-	inp = inp.KeyCode.Name:lower()
-	
-	if inp == C.Key then
-		C.Prompter()
-	end
-end)
-
-
-
--- Chat handler
--- Find/Remove prefix
-function C.FindRemovePrefix(str)
-	for _, pre in ipairs(C.Prefixes) do
-		if str:sub(1, #pre) == pre then
-			return str:sub(#pre + 1), pre -- returns message without prefix, also returns which prefix matched
+	},
+	cframefly = {
+		a = {"cffly","cfly"},
+		d = "Makes you fly using CFrame instead of velocity.",
+		f = function(speed)
+			FlyService.ChangeSettings({
+				Speed = speed or FlyService.DefaultSpeed or 50,
+				CF = true,
+				Plat = true,
+				Anim = true,
+				Ang = true,
+				Rot = true
+			})
+			if speed then
+				FlyService.DefaultSpeed = speed
+			end
+			FlyService.Activate()
 		end
-	end
-	return nil -- no prefix matched
-end
+	},
+	vehiclefly = {
+		a = {"vfly"},
+		d = "Makes you fly a vehicle if some conditions are right.",
+		f = function(speed)
+			FlyService.ChangeSettings({
+				Speed = speed or FlyService.DefaultSpeed or 50,
+				CF = false,
+				Plat = false,
+				Anim = false,
+				Ang = true,
+				Rot = true
+			})
+			if speed then
+				FlyService.DefaultSpeed = speed
+			end
+			FlyService.Activate()
 
--- Check chat version
-if TextChatService.ChatVersion == Enum.ChatVersion.TextChatService then
-	TextChatService.OnIncomingMessage = function(message: TextChatMessage)
-		if message.TextSource and message.TextSource.UserId == player.UserId then
-			-- Only process real chat messages
-			if message.Status == Enum.TextChatMessageStatus.Success and message.TextChannel then
-				local msg = C.FindRemovePrefix(message.Text)
-				if msg then
-					C.RunCmdStr(msg)
+			-- Handle when you seated on vehicle seat
+			M.Disconn(Conns.SitFlyConn)
+			local seat = hum.SeatPart
+			if seat then
+				task.wait(0)
+				workspace.CurrentCamera.CameraSubject = hum
+			end
+			Conns.SitFlyConn = hum:GetPropertyChangedSignal("SeatPart"):Connect(function()
+				--print("Sitted!")
+				task.wait(0)
+				workspace.CurrentCamera.CameraSubject = hum
+			end)
+		end
+	},
+	sitfly = {
+		a = {"sfly","fly2"},
+		d = "Makes you sit while flying. Why not?",
+		f = function(speed)
+			M.RunCmd("vehiclefly")
+			hum.Sit = true
+		end
+	}, -- Haven't made the hello world command yet.
+	walkspeed = { -- Incredible 🥲
+		a = {"speed"},
+		d = "Sets your walkspeed to a value.",
+		f = function(value)
+			--if value then
+			--	M.DefaultWalkSpeed = value
+			--else
+			--	value = M.DefaultWalkSpeed or 16
+			--end
+			hum.WalkSpeed = value or M.DefaultWalkSpeed
+		end,
+	},
+	jump = {
+		a = {},
+		d = "Jumps u. What else?",
+		f = function()
+			hum.UseJumpPower = true -- YES!!!
+			hum.Jump = true
+			hum:ChangeState(Enum.HumanoidStateType.Jumping)
+			UniService.OnceLinVel(root,Vector3.new(root.Velocity.X,hum.JumpPower,root.Velocity.Z))
+		end,
+	},
+	infinitejump = {
+		a = {"infjump","ijump"},
+		d = "Makes you infinitely jump! IT CAN GET GLITCHY WITH DIFFERENT DEVICES...",
+		f = function()
+			if UIS.TouchEnabled then
+				local TouchGui = plrgui:FindFirstChild("TouchGui")
+				if not TouchGui then warn("No TouchGui founded.") return end
+				local TouchControlFrame = TouchGui:WaitForChild("TouchControlFrame")
+				local JumpButton = TouchControlFrame:WaitForChild("JumpButton")
+				JumpButton.Visible = true
+				M.Disconn(Conns.JumpConn)
+				Conns.JumpConn = JumpButton.MouseButton1Click:Connect(function()
+					M.RunCmd("jump")
+				end)
+			else
+				Conns.JumpConn = UIS.InputBegan:Connect(function(inp,gp)
+					if gp then return end
+					inp = inp.KeyCode.Name:lower()
+					if inp == "space" then
+						M.RunCmd("jump")
+					end
+				end)
+			end
+		end,
+	},
+	uninfinitejump = {
+		a = {"uninfjump","uinfjump","uijump"},
+		d = "Makes you NOT infinitely jump.",
+		f = function()
+			M.Disconn(Conns.JumpConn)
+		end,
+	},
+	infinitewalkspeed = {
+		a = {"infwalkspeed","iwalkspeed","ispeed","infspeed"},
+		d = "Infinitely and definiately sets your walkspeed to a value.",
+		f = function(value)
+			M.Disconn(Conns.InfWalkSpeed)
+			Conns.InfWalkSpeed = RunService.RenderStepped:Connect(function()
+				hum.WalkSpeed = value
+			end)
+		end,
+	},
+	uninfinitewalkspeed = {
+		a = {"uninfwalkspeed","uniwalkspeed","uiws","uispeed","uninfspeed"}, -- Names are insane 😭
+		d = "Makes you NOT infinitely set your walkspeed",
+		f = function()
+			M.Disconn(Conns.InfWalkSpeed)
+		end,
+	},
+	cmdinfo = {
+		a = {},
+		d = "Views an commands info.",
+		f = function(cmd)
+			local name = cmd
+			cmd = table.find(M.Cmds,cmd)
+			if not cmd then warn("No command found.") return end
+			print("Command info:",name,"= {")
+			if cmd.a[1] then
+				print("	Aliases:",table.concat(cmd.a,", "))
+			else
+				print("	Aliases: None")
+			end
+			print("	Description:",cmd.d)
+			print("	Function:",cmd.f)
+			print("}")
+		end,
+	},
+	cframewalk = {
+		a = {"cfwalk","cwalk","cfw"},
+		d = "Moves your character by using CFrame instead of velocity. Horizontally sadly.",
+		f = function(value)
+			if not value then
+				M.CFrameWalkDefaultSpeed = value
+			end
+			value = value or M.CFrameWalkDefaultSpeed or 32
+			M.Disconn(Conns.CFrameWalkConn)
+			hum.WalkSpeed = 0
+			Conns.CFrameWalkConn = RunService.Heartbeat:Connect(function(dt)
+				local moveVect = UniService.GetMoveVectorCam(Vector3.new(1,0,1))
+				if moveVect.Magnitude > 0 then
+					root.CFrame += moveVect * value * dt
+				end
+			end)
+		end,
+	},
+	uncframewalk = {
+		a = {"uncfwalk","uncwalk","ucwalk","ucw","ucfw"},
+		d = "Makes you stop CFrame walk.",
+		f = function()
+			M.Disconn(Conns.CFrameWalkConn)
+			hum.WalkSpeed = M.DefaultWalkSpeed
+		end,
+	},
+	restorecollisionsmassless = {
+		a = {"rcm"},
+		d = "Restores characters properties like CanCollide and Massless.",
+		f = function(playername)
+			if not playername then playername = player.Name end
+			local target = UniService.SinglePlayerType(player, playername)
+			if not target then return end
+			for _,v in pairs(char:GetDescendants()) do
+				local n = v.Name
+				if not v:IsA("BasePart") and not v:IsA("Part") and not v:IsA("MeshPart") then continue end
+				v.CanCollide = false
+				v.Massless = false
+				if n == "Head" or n == "Torso" or n == "LowerTorso" or n == "UpperTorso" then
+					if n == "Head" and UniService.RigType == "r15" then continue end
+					v.CanCollide = true
 				end
 			end
-		end
-	end
-else
-	-- Legacy	
-	player.Chatted:Connect(function(str)
-		local msg = C.FindRemovePrefix(str)
-		if msg then
-			C.RunCmdStr(msg)
-		end
-	end)
-end
-
-
-
--- THE COMMANDS AND COMMAND FUNCTIONS YEEEAAAAAAAHHHH!!!
-
-
-
-AC({"test"},function()
-	print("This is a test!")
-end)
-
-
-C.Tasks.Test2 = nil
-AC({"test2"},function()
-	local t = C.Tasks.Test2
-	if t then
-		C.CancelTask(t)
-		print("Test2 stopped")
-		return
-	end
-	
-	print("Test2 started")
-	
-	C.CreateTask("Test2",function()
-		while task.wait(0.1) do
-			print("Test2 is running!")
-		end
-	end)
-end)
-
-
--- Speed
-C.DefaultSpeed = hum.WalkSpeed
-AC({"speed"},function(speed)
-	--C.SetSpeed(speed) this ai keeps coming up with random functions. THESE FUNCTIONS DON'T EXIST YET!!!
-	hum.WalkSpeed = speed or C.DefaultSpeed
-end)
-
-
--- Jump
-C.DefaultJumpPower = hum.JumpPower
-AC({"jump"},function(power)
-	-- AppOnceLinVel(part, name, max, vel, timo) reference
-	hum.Jump = true
-	hum:ChangeState(Enum.HumanoidStateType.Jumping)
-	M.AppOnceLinVel(root, "Jump", math.huge, Vector3.new(root.Velocity.X,power or C.DefaultJumpPower,root.Velocity.Z))
-end)
-
-
--- Sit
-AC({"sit"},function()
-	hum.Sit = true -- As easy as that.
-end)
-
-
--- Table of contents for restoring collisions and massless values:
---[[
-R6
-Head: C true M false
-Root: C false M false
-Left Arm: C false M false
-Left Leg: C false M false
-Right Arm: C false M false
-Right Leg: C false M false
-Torso: C true M false
-Root: C false M false
-
-R15
-Same for limbs, upper + lower torso have C true M false
-Root: C true M false I don't know why this changed.
-
-
-Universal:
-Accessories:
-C false M false
-
-]]
-
--- Restore Collisions + Massless
-AC({"restorecollisionmassless", "rcm"},function()
-	if C.Connections.Noclip then
-		C.Disconnect("Noclip")
-	end
-	
-	for _, v in pairs(char:GetDescendants()) do
-		if not v:IsA("BasePart") and not v:IsA("Part") and not v:IsA("MeshPart") then continue end
-		-- Reset
-		v.CanCollide = false
-		v.Massless = false
-		
-		-- Head
-		if v.Name == "Head" then
-			v.CanCollide = true
-		end
-		
-		-- Torso
-		if v.Name == "Torso" or v.Name == "UpperTorso" or v.Name == "LowerTorso" then
-			v.CanCollide = true
-		end
-		
-		-- Root
-		if v.Name == "HumanoidRootPart" then
-			if hum.RigType == Enum.HumanoidRigType.R15 then
-				v.CanCollide = true
-			else
-				v.CanCollide = false
-			end
-		end
-	end
-end)
-C.RCMChar = function(charlo)
-	for _, v in pairs(charlo:GetDescendants()) do
-		if not v:IsA("BasePart") and not v:IsA("Part") and not v:IsA("MeshPart") then continue end
-		-- Reset
-		v.CanCollide = false
-		v.Massless = false
-
-		-- Head
-		if v.Name == "Head" then
-			v.CanCollide = true
-		end
-
-		-- Torso
-		if v.Name == "Torso" or v.Name == "UpperTorso" or v.Name == "LowerTorso" then
-			v.CanCollide = true
-		end
-
-		-- Root
-		if v.Name == "HumanoidRootPart" then
-			if hum.RigType == Enum.HumanoidRigType.R15 then
-				v.CanCollide = true
-			else
-				v.CanCollide = false
-			end
-		end
-	end
-end
-
-
--- Noclip/clip
-AC({"noclip"},function()
-	C.Disconnect("Noclip")
-	
-	C.Connections.Noclip = RunService.Stepped:Connect(function()
-		for _, v in pairs(char:GetDescendants()) do
-			if not v:IsA("BasePart") and not v:IsA("Part") and not v:IsA("MeshPart") then continue end
-			v.CanCollide = false
-		end
-	end)
-end)
-C.NoclipChar = function(charlo)
-	C.Disconnect("Noclip")
-
-	C.Connections.Noclip = RunService.Stepped:Connect(function()
-		for _, v in pairs(charlo:GetDescendants()) do
-			if not v:IsA("BasePart") and not v:IsA("Part") and not v:IsA("MeshPart") then continue end
-			v.CanCollide = false
-		end
-	end)
-end
-
-AC({"clip"},function()
-	-- Turn off connection
-	C.Disconnect("Noclip")
-	
-	-- Use RCM to restore collisions
-	C.RunCmd("rcm")
-end)
-C.ClipChar = function(charlo)
-	C.Disconnect("Noclip")
-	C.RCMChar(charlo)
-end
-
-
--- General fling/stop gfling
-local flingvel = nil
-local flingatt = nil
-AC({"generalfling","gfling"},function(intensity)
-	C.Disconnect("GeneralFling")
-	intensity = intensity or 1e31
-	
-	if flingvel then flingvel:Destroy() flingvel = nil end
-	if flingatt then flingatt:Destroy() flingatt = nil end
-	
-	if not C.Connections.CFrameWalk then
-		cam.CameraSubject = root
-	end
-	
-
-	flingvel, flingatt = M.AppModAngVel(root, "GeneralFling", math.huge, Vector3.one*intensity)
-	-- AppModAngVel(part, name, max, vel) Reference
-	C.Connections.GeneralFling = RunService.Stepped:Connect(function()
-		for _, v in pairs(char:GetDescendants()) do
-			if not v:IsA("BasePart") and not v:IsA("Part") and not v:IsA("MeshPart") then continue end
-			v.CanCollide = false
-			v.Massless = true
-		end
-	end)
-end)
-
-AC({"ungeneralfling","ungfling"},function()
-	root.Anchored = true
-	C.Disconnect("GeneralFling")
-	flingvel.AngularVelocity = Vector3.zero
-	cam.CameraSubject = hum
-	root.Velocity = Vector3.zero
-	root.AssemblyAngularVelocity = Vector3.zero
-	task.wait(0.1)
-	root.Anchored = false
-	flingvel:Destroy()
-	flingatt:Destroy()
-	flingvel = nil
-	flingatt = nil
-	C.RunCmd("rcm")
-end)
-
-
--- Fly, unfly, sfly/fly2, cfly, ffly
--- Regular fly/unfly
-C.DefaultFlySpeed = 50
-AC({"fly"},function(speedo)
-	if speedo then C.DefaultFlySpeed = speedo end
-	Fly.UpdateSettings({
-		speed = speedo or C.DefaultFlySpeed,
-		cf = false
-	})
-
-	Fly.Connect()
-end)
-
--- Unfly
-AC({"unfly"},function()
-	if C.Connections.GeneralFling then
-		C.RunCmd("ungfling")
-		task.wait(0.1)
-		Fly.Disconnect()
-	else
-		Fly.Disconnect()
-	end
-end)
-
--- Sit fly
-AC({"sfly","fly2","sitfly"},function(speedo)
-	if speedo then C.DefaultFlySpeed = speedo end
-	Fly.UpdateSettings({
-		speed = speedo or C.DefaultFlySpeed,
-		cf = false,
-		plat = false -- So you can sit
-	})
-
-	Fly.Connect()
-end)
-
--- Cframe fly
-AC({"cfly","cframefly"},function(speedo)
-	if speedo then C.DefaultFlySpeed = speedo end
-	Fly.UpdateSettings({
-		speed = speedo or C.DefaultFlySpeed,
-		cf = true
-	})
-	
-	Fly.Connect()
-end)
-
--- Fling fly
-AC({"ffly","flingfly"},function(speedo, intensity)
-	if speedo then C.DefaultFlySpeed = speedo end
-	Fly.UpdateSettings({
-		speed = speedo or C.DefaultFlySpeed,
-		cf = true,
-		anim = false,
-		plat = true,
-		ang = false,
-		camrot = false
-	})
-	
-	Fly.Connect()
-	
-	C.RunCmd("gfling", intensity)
-end)
-
-
--- CFrame walk
-C.DefaultCFWalkSpeed = 32
-C.TempDefaultWalkSpeed = 0
-AC({"cfwalk","cframewalk","cfw"}, function(speedo)
-	if speedo then C.DefaultCFWalkSpeed = speedo end
-	C.TempDefaultWalkSpeed = hum.WalkSpeed
-	hum.WalkSpeed = 0
-	C.Disconnect("CFrameWalk")
-
-	C.Connections.CFrameWalk = RunService.Heartbeat:Connect(function(dt)
-		local moveVec = M.GetMoveVector(1,0,1)
-		if moveVec.Magnitude > 0 then
-			local finalPos = root.Position + moveVec * C.DefaultCFWalkSpeed * dt
-			root.CFrame = CFrame.new(finalPos) * (root.CFrame - root.CFrame.Position)
-		end
-		
-		-- Horizontal snap
-		local pos = root.Position
-		local look = root.CFrame.LookVector
-		local flatDir = Vector3.new(look.X, 0, look.Z)
-		if flatDir.Magnitude > 0 then
-			flatDir = flatDir.Unit
-			root.CFrame = CFrame.new(pos, pos + flatDir)
-		end
-	end)
-end)
-
--- UnCFrame walk
-AC({"uncfwalk","uncframewalk","uncfw", "ucfw"}, function()
-	C.Disconnect("CFrameWalk")
-	hum.WalkSpeed = C.TempDefaultWalkSpeed
-end)
-
-
--- Respawn
-AC({"respawn","re"},function()
-	local h = char:FindFirstChild("Head")
-	if h then h:Destroy() end
-	hum.Health = -math.huge
-end)
-
-
--- Respawn position
-AC({"respawnpos","rpos","rp","repos", "rep"},function()
-	local pos = root.Position
-	C.RunCmd("re")
-	C.Connections.Respawnation = player.CharacterAdded:Connect(function()
-		RunService.Heartbeat:Wait()
-		root.CFrame = CFrame.new(pos)
-		C.Disconnect("Respawnation")
-	end)
-end)
-
-
--- fcfw - fling cframe walk
-AC({"fcfw","flingcframewalk"}, function(speedo, intensity)
-	C.RunCmd("cfw", speedo)
-	C.RunCmd("gfling", intensity)
-end)
-
--- unfcfw - unfling cframe walk
-AC({"unfcfw","unflingcframewalk", "ufcfw"}, function()
-	C.RunCmd("ungfling")
-	task.wait(0.1)
-	C.RunCmd("uncfw")
-end)
-
-
--- Spin
-local spinatt = nil
-local spinvel = nil
-C.DefaultSpinSpeed = 15
-AC({"spin"}, function(speedo)
-	if speedo then C.DefaultSpinSpeed = speedo end
-	speedo = tonumber(speedo) or C.DefaultSpinSpeed
-	if spinvel then spinvel:Destroy() spinvel = nil end
-	if spinatt then spinatt:Destroy() spinatt = nil end
-	
-	spinvel, spinatt = M.AppModAngVel(root, "Spinnin", math.huge, Vector3.yAxis * C.DefaultSpinSpeed)
-end)
-
--- UnSpin
-AC({"unspin"}, function()
-	spinvel:Destroy()
-	spinatt:Destroy()
-	spinvel = nil
-	spinatt = nil
-end)
-
-
--- view/spectate
-AC({"view","spectate","watch"}, function(plr)
-	if not plr then
-		cam.CameraSubject = hum
-		return
-	end
-	
-	local target = M.GetPlayerByType(player, plr)
-	if target[2] then return end
-	target = target[1]
-	cam.CameraSubject = M.GetCharacter(target).hum
-end)
-
-AC({"unview", "unspectate", "unwatch"},function()
-	cam.CameraSubject = hum
-end)
-
-
--- To
-AC({"to"},function(target)
-	if not target then return end
-	target = M.GetPlayerByType(player, target)
-	if target[2] then return end
-	target = target[1]
-	--local targetroot = M.GetRoot(target) THERE IS NO GETROOT IN MAIN MODULE!!!
-	local rootB = M.GetCharacter(target).root
-	root.CFrame = CFrame.new(rootB.Position) * (root.CFrame - root.CFrame.Position)
-end)
-
-
-
-AC({"fling","flingperson","flingplayer"}, function(target, timo, predict) -- new new! Prediction stuff by chatgpt gluh.
-	if not target then return end
-	local pos = root.Position
-	target = M.GetPlayerByType(player, target)
-
-	C.RunCmd("ffly")
-
-	task.spawn(function()
-		for _, v in pairs(target) do
-			if v == player then continue end
-
-			local targetRoot = v.Character and v.Character:FindFirstChild("HumanoidRootPart")
-			if not targetRoot then continue end
-
-			-- how much prediction time to add (tweak this)
-			local predictionTime = tonumber(predict) or 0.43 -- I'll be honest I don't know if this prediction thing would work.
-			-- Note2 I think it works welly I guess...?
-
-			C.Connections.TempLoopTo = RunService.Heartbeat:Connect(function()
-				if not targetRoot.Parent then return end
-
-				-- predict where they’ll be
-				local predicted = targetRoot.Position + targetRoot.AssemblyLinearVelocity * predictionTime
-				local predictedCF = CFrame.new(predicted, predicted + targetRoot.CFrame.LookVector)
-
-				-- lock onto that spot
-				root.CFrame = predictedCF
+		end,
+	},
+	noclip = {
+		a = {},
+		d = "Disables your collisions but hipheight saves you from falling.",
+		f = function(playername)
+			if not playername then playername = player.Name end
+			local target = UniService.SinglePlayerType(player, playername)
+			if not target then return end
+			M.Disconn(Conns.NoclipConn)
+			Conns.NoclipConn = RunService.Stepped:Connect(function()
+				for _,v in pairs(char:GetDescendants()) do
+					if not v:IsA("BasePart") and not v:IsA("Part") and not v:IsA("MeshPart") then continue end
+					v.CanCollide = false
+				end
+			end)
+		end,
+	},
+	clip = {
+		a = {"unnoclip"},
+		d = "Un-noclips you so you can collide stuff.",
+		f = function()
+			M.Disconn(Conns.NoclipConn)
+			M.RunCmd("rcm")
+		end,
+	},
+	faker = {
+		a = {"clone"},
+		d = "Makes a fake character that you control, but your real character stays still. VERY UNSTABLE (I THINK...)",
+		f = function()
+			if M.Faker.Active then return end
+			M.Faker.Active = true
+			-- Store originals
+			local Faker = M.Faker
+			Faker.root = root
+			Faker.hum = hum
+			Faker.char = char
+
+			-- Noclip orig character
+			M.Disconn(Conns.FakerConn)
+			M.Disconn(Conns.FakerConn0)
+			Conns.FakerConn = RunService.Stepped:Connect(function()
+				for _,v in pairs(Faker.char:GetDescendants()) do
+					if not v:IsA("BasePart") and not v:IsA("Part") and not v:IsA("MeshPart") then continue end
+					v.CanCollide = false
+				end
 			end)
 
-			task.wait(tonumber(timo) or 1.5)
-			C.Disconnect("TempLoopTo")
-		end
-		
-		C.RunCmd("unfly")
-		-- meh
-		root.CFrame = CFrame.new(pos)
-	end)
-end)
+			-- New character
+			char.Archivable = true -- To clone of course!
+			char = char:Clone()
+			char.Name = "Fake_" .. char.Name
+			root = char:WaitForChild("HumanoidRootPart")
+			hum = char:WaitForChild("Humanoid")
+			char.Parent = workspace
+			Conns.FakerConn0 = hum.Died:Connect(function()
+				M.RunCmd("unfaker")
+				M.Disconn(Conns.FakerConn0)
+			end)
 
+			-- Setting up stuff
+			cam.CameraSubject = hum
+			player.Character = char
 
-
--- Loop to (Yes I literally made this after I really needed to use.)
-AC({"loopto", "lto", "lt"},function(target)
-	if not target then return end
-	target = M.GetPlayerByType(player, target)
-	if target[2] then return end
-	target = target[1]
-	
-	C.Connections.LoopTo = RunService.Heartbeat:Connect(function()
-		C.RunCmd("to", target.Name)
-	end)
-end)
-
-AC({"unloopto","unlto","ulto","unlt","ult"},function()
-	C.Disconnect("LoopTo")
-end)
-
-
--- Infinite jump
-AC({"infinitejump","infjump","infj"},function()
-	C.Disconnect("Infjump1")
-	C.Disconnect("Infjump2")
-
-	local debounce = false
-
-	-- When jump is requested (works for space & mobile tap)
-	C.Connections.Infjump1 = UserInputService.JumpRequest:Connect(function()
-		if debounce then return end
-		debounce = true
-		C.RunCmd("jump")
-	end)
-
-	-- When the jump input is released (spacebar or mobile lift)
-	C.Connections.Infjump2 = UserInputService.InputEnded:Connect(function(input, gpe)
-		if gpe then return end
-		if input.KeyCode == Enum.KeyCode.Space or input.UserInputType == Enum.UserInputType.Touch then
-			debounce = false
-		end
-	end)
-end)
-
-
--- Intense spin - Turns on massless for all limbs except for your root. This allows you to not get flinged by your center of mass.
-AC({"intensespin","ispin"},function(speedo)
-	speedo = tonumber(speedo) or 1e5
-	C.Disconnect("IntenseSpin")
-	
-	C.Connections.IntenseSpin = RunService.Stepped:Connect(function()
-		for _, v in pairs(char:GetDescendants()) do
-			if not v:IsA("BasePart") and not v:IsA("Part") and not v:IsA("MeshPart") then continue end
-			v.CanCollide = false
-			v.Massless = true
-		end
-	end)
-	
-	C.RunCmd("spin", speedo)
-end)
-
-AC({"unintensespin","unispin","unisp","uispin"},function()
-	C.Disconnect("IntenseSpin")
-end)
-
-
--- Dump global table
-AC({"dumpglobaltable","dumpg","dg","dump"},function()
-	M.DumpTable(_G, "_G")
-end)
-
-
--- Fake character
-local storedTransparencies = {}
-local realChar = player.Character or player.CharacterAdded:Wait()
-local fakeChar = nil
-AC({"fakecharacter","fakechar","faker"},function()
-	char.Archivable = true -- So you can CLONE!
-	realChar = player.Character or player.CharacterAdded:Wait()
-	fakeChar = char:Clone()
-	fakeChar.Parent = workspace
-	fakeChar.Name = "FakeChar"
-	
-	-- Remove useless stuff
-	for _, obj in ipairs(fakeChar:GetChildren()) do
-		if not obj:IsA("Humanoid") 
-			and not obj:IsA("Part") 
-			and not obj:IsA("MeshPart") 
-			and obj.Name ~= "HumanoidRootPart" then
-			obj:Destroy()
-		end
-	end
-	
-	local fakeRoot = fakeChar:FindFirstChild("HumanoidRootPart")
-	fakeRoot.CFrame = root.CFrame
-	
-	-- Transparency
-	for _, part in ipairs(char:GetDescendants()) do
-		if part:IsA("BasePart") or part:IsA("Decal") then
-			if not storedTransparencies[part] then
-				storedTransparencies[part] = part.Transparency
+			-- Make orig character opaque
+			for _,v in pairs(Faker.char:GetDescendants()) do
+				if v:IsA("BasePart") or v:IsA("Part") or v:IsA("MeshPart") then
+					v.Transparency = 0.5
+				end
 			end
-			part.Transparency = 0.75
-		end
-	end
-	
-	-- Restore transp
-	--[[
-	for part, oldValue in pairs(storedTransparencies) do
-		if part and part.Parent then
-			part.Transparency = oldValue
-		end
-	end
-	storedTransparencies = {}
-	]]
-	
-	player.Character = fakeChar
-	cam.CameraSubject = fakeChar:WaitForChild("Humanoid")
-	
-	C.NoclipChar(realChar)
-end)
 
-AC({"unfakecharacter","unfakechar","unfaker"},function()
-	player.Character = realChar
-	cam.CameraSubject = realChar:WaitForChild("Humanoid")
-	C.ClipChar(realChar)
-	
-	for part, oldValue in pairs(storedTransparencies) do
-		if part and part.Parent then
-			part.Transparency = oldValue
-		end
-	end
-	storedTransparencies = {}
-	
-	realChar.HumanoidRootPart.CFrame = fakeChar.HumanoidRootPart.CFrame
-	
-	fakeChar:Destroy()
-end)
+			-- a
+			M.RunCmd("clip")
+		end,
+	},
+	unfaker = {
+		a = {"unclone"},
+		d = "Makes you go back to your normal character and destroys the clone.",
+		f = function()
+			M.Faker.Active = false
+			M.Disconn(Conns.FakerConn)
+			local Faker = M.Faker
+			Faker.root.CFrame = root.CFrame
+			char:Destroy()
+			player.Character = Faker.char
+			char = Faker.char
+			root = Faker.root
+			hum = Faker.hum
+			Faker.char = nil
+			Faker.root = nil
+			Faker.hum = nil
+			cam.CameraSubject = hum
+			for _,v in pairs(char:GetDescendants()) do
+				if v:IsA("BasePart") or v:IsA("Part") or v:IsA("MeshPart") then
+					if v.Name == "HumanoidRootPart" then v.Transparency = 1 continue end
+					v.Transparency = 0
+				end
+			end
+			M.RunCmd("clip")
+		end,
+	},
+	invisible = {
+		a = {"invis"},
+		d = "Makes you invisible. Uses faker command (Does auto) and moves the real character far away.",
+		f = function(farintensity)
+			if M.Faker.Active then return end
+			local origcf = root.CFrame
+			local Oroot = root
+			farintensity = tonumber(farintensity) or 1e3
+			M.Disconn(Conns.InvisibleConn)
+			local lv, a = UniService.ApplyLinVel(root, Vector3.zero)
+			local av, a2 = UniService.ApplyAngVel(root, Vector3.zero)
+			a2:Destroy()
+			av.Attachment0 = a
+			M.InvisibleLV = lv
+			M.InvisibleAV = av
+			Conns.InvisibleConn = RunService.RenderStepped:Connect(function()
+				local froot = nil
+				pcall(function()
+					froot = workspace:FindFirstChild("Fake_"..player.Name).HumanoidRootPart
+				end)
+				if froot then
+					Oroot.CFrame = CFrame.new(Vector3.one*farintensity+froot.Position)
+				else
+					Oroot.CFrame = CFrame.new(Vector3.one*farintensity)
+				end
+			end)
+			task.delay(0.15,function()
+				M.RunCmd("faker")
+				task.wait(0)
+				root.CFrame = origcf
+				local lv, av = root:FindFirstChildOfClass("LinearVelocity"), root:FindFirstChildOfClass("AngularVelocity")
+				if lv and av then
+					lv:Destroy()
+					av:Destroy()
+				end
+			end)
+		end,
+	},
+	visible = {
+		a = {"vis"},
+		d = "Makes you visible.",
+		f = function()
+			M.Disconn(Conns.InvisibleConn)
+			M.RunCmd("unfaker")
+			M.InvisibleLV:Destroy()
+			M.InvisibleAV:Destroy()
+		end,
+	},
+	spectate = {
+		a = {"view","spec"},
+		d = "Makes you view a selected player.",
+		f = function(target)
+			target = target or player.Name
+			target = UniService.SinglePlayerType(player,target)
+			if not target then return end
+			local hum2 = UniService.GetChar(target).hum
+			if not hum2 then return end
+			cam.CameraSubject = hum2
+		end,
+	},
+	unspectate = { -- Why am I making this? No reason.
+		a = {"unview","unspec"},
+		d = "Unspectates the player your spectating. You can literally do this by inputting nothing.",
+		f = function()
+			cam.CameraSubject = hum
+		end,
+	},
+	fling = {
+		a = {},
+		d = "Flings anything that is unachored! On contact to your local player. VERY UNSTABLE...",
+		f = function(intensity)
+			if M.Faker.Active then return end
+			intensity = intensity or 1e35
+			local Oroot = root
 
+			M.RunCmd("faker")
+			M.Disconn(Conns.FlingConn)
 
--- Invisible | The best and worst programmer ME >B)
-AC({"invisible","invis"},function()
-	C.Disconnect("Invisible")
-	--C.RunCmd("unfaker")
-	local cf = realChar:FindFirstChild("HumanoidRootPart").CFrame
+			--M.Disconn(Conns.FlingConn0)
+			--Conns.FlingConn0 = RunService.Stepped:Connect(function()
 
-	realChar:FindFirstChild("HumanoidRootPart").CFrame = CFrame.new(Vector3.one*1e3)
-	
-	task.wait(0.1)
-	
-	realChar:FindFirstChild("HumanoidRootPart").Anchored = true -- I keep ignoring this.
-	print("INVISIBLE COMMAND IS VERY BUGGY!!! USE AT YOUR OWN RISK HERE BUDDY!")
-	
-	C.RunCmd("faker")
-	
-	fakeChar:WaitForChild("HumanoidRootPart").CFrame = cf
-	
-	
-	for _, v in pairs(fakeChar:WaitForChild("HumanoidRootPart"):GetChildren()) do
-		if not v:IsA("LinearVelocity") and not v:IsA("AngularVelocity") then continue end
-		v:Destroy()
-	end
-	
-	fakeChar:FindFirstChild("HumanoidRootPart").Anchored = false
-end)
-
-AC({"visible","vis"},function()
-	C.Disconnect("Invisible")
-	C.RunCmd("unfaker")
-	realChar:FindFirstChild("HumanoidRootPart").Anchored = false
-end)
-
-
--- Walkfling
-local wflingatt
-local wflinglv
-local wflingav
-AC({"walkfling","wfling"},function(intensity)
-	C.RunCmd("af")
-	C.Disconnect("WalkFling")
-	C.RunCmd("faker")
-	C.NoclipChar(realChar)
-	C.NoclipChar(fakeChar)
-	
-	wflingatt = Instance.new("Attachment",realChar:FindFirstChild("HumanoidRootPart"))
-	wflinglv = Instance.new("LinearVelocity",realChar:FindFirstChild("HumanoidRootPart"))
-	wflingav = Instance.new("AngularVelocity",realChar:FindFirstChild("HumanoidRootPart"))
-
-	wflinglv.Attachment0 = wflingatt
-	wflingav.Attachment0 = wflingatt
-
-	wflinglv.MaxForce = math.huge
-	wflinglv.VectorVelocity = Vector3.zero
-
-	wflingav.MaxTorque = math.huge
-	wflingav.AngularVelocity = Vector3.one*(intensity or 1e35)
-	
-	C.Connections.WalkFling = RunService.Stepped:Connect(function()
-		local rooto = realChar:FindFirstChild("HumanoidRootPart")
-		rooto.AssemblyLinearVelocity = Vector3.zero
-		rooto.CFrame = CFrame.new(fakeChar.HumanoidRootPart.CFrame.Position) * (rooto.CFrame - rooto.CFrame.Position)
-		for _, v in pairs(realChar:GetDescendants()) do
-			if v:IsA("BasePart") or v:IsA("Part") or v:IsA("MeshPart") then
+			--end)
+			for _,v in pairs(M.Faker.char:GetDescendants()) do
+				if not v:IsA("BasePart") and not v:IsA("Part") and not v:IsA("MeshPart") then continue end
 				v.CanCollide = false
 				v.Massless = true
 			end
-		end
-	end)
-end)
 
-AC({"unwalkfling","unwfling","uwfling"},function()
-	C.RunCmd("uaf")
-	C.Disconnect("WalkFling")
-	wflingav.AngularVelocity = Vector3.zero
-	wflinglv.VectorVelocity = Vector3.zero
-	task.wait(0.1)
-	C.ClipChar(realChar)
-	C.RunCmd("unfaker")
-	wflingatt:Destroy()
-	wflinglv:Destroy()
-	wflingav:Destroy()
-	wflingatt = nil
-	wflinglv = nil
-	wflingav = nil
-end)
+			local safeCF = Oroot.CFrame
+			Conns.FlingConn = RunService.RenderStepped:Connect(function()
+				local froot = nil
+				pcall(function()
+					froot = workspace:FindFirstChild("Fake_"..player.Name).HumanoidRootPart
+				end)
+				if froot then
+					Oroot.CFrame = CFrame.new(froot.Position) * (Oroot.CFrame - Oroot.Position)
+					--av.AngularVelocity = Vector3.one*intensity
+					M.Faker.hum.PlatformStand = true
+					M.Faker.hum:ChangeState(Enum.HumanoidStateType.PlatformStanding)
+				end
 
-
-AC({"disconnectconnections","disconns"},function()
-	local Z = C.Connections
-	local z = C.Tasks
-	
-	local function AttemptDisconnect(n)
-		pcall(function()
-			C.Disconnect(Z[n])
-		end)
-	end
-	local function AttemptCancellation(n)
-		pcall(function()
-			C.CancelTask(z[n])
-		end)
-	end
-
-	AttemptCancellation("Test2")
-	AttemptDisconnect("Noclip")
-	AttemptDisconnect("GeneralFling")
-	AttemptDisconnect("CFrameWalk")
-	AttemptDisconnect("Respawnation")
-	AttemptCancellation("FlingPlayer")
-	AttemptDisconnect("TempLoopTo")
-	AttemptDisconnect("IntenseSpin")
-	AttemptDisconnect("Infjump1")
-	AttemptDisconnect("Infjump2")
-	AttemptDisconnect("LoopTo")
-	AttemptDisconnect("TempLoopTo")
-	AttemptDisconnect("Respawnation")
-	AttemptDisconnect("Invisible")
-	AttemptDisconnect("WalkFling")
-	AttemptDisconnect("Invisible")
-	AttemptDisconnect("IntenseSpin")
-end)
-
-
--- Print commands
-AC({"printcmds","pcmds","cmds","viewcmds"},function()
-	print("JS - JaysClientCmds - LIST OF COMMANDS:")
-	for name, func in pairs(C.Commands) do
-		print("Cmd",name,"|",func)
-	end
-end)
-
-
--- JUMPSCARE! - Have invis on
-AC({"jumpscare","js"},function()
-	C.RunCmd("vis")
-	task.wait(0.5)
-	C.RunCmd("invis")
-end)
-
-
--- Test anti-fling
-AC({"testantifling"},function()
-	local cf = root.CFrame
-	local lv, att = M.AppModLinVel(root, "TestFling", math.huge, Vector3.zero)
-	
-	C.Connections.TestAntiFling = RunService.Stepped:Connect(function()
-		root.CFrame = cf
-		root.AssemblyLinearVelocity = Vector3.zero
-		
-		for _, v in pairs(char:GetDescendants()) do
-			if not v:IsA("BasePart") and not v:IsA("Part") and not v:IsA("MeshPart") then continue end
-			v.CanCollide = false
-			v.Massless = true
-		end
-	end)
-end)
-
-
--- Test anti-fling 2
-AC({"testantifling2"},function()
-	root.Anchored = true -- Hmmm
-end)
-
-
--- Antifling
-AC({"antifling","noplrcollisions","npc","af"},function()
-	if C.Connections.AntiFling then
-		C.Disconnect("AntiFling")
-	end
-	
-	C.Connections.AntiFling = RunService.Stepped:Connect(function()
-		for _, v in pairs(Players:GetPlayers()) do
-			if v == Players.LocalPlayer then continue end
-			local charlo = v.character
-			if not charlo then continue end
-			for _, v in pairs(charlo:GetDescendants()) do
-				if not v:IsA("BasePart") and not v:IsA("Part") and not v:IsA("MeshPart") then continue end
-				v.CanCollide = false
+				-- If things get out of hand!
+				local lmag = froot.AssemblyLinearVelocity.Magnitude
+				local amag = froot.AssemblyAngularVelocity.Magnitude
+				if lmag <= 100 then
+					safeCF = Oroot.CFrame
+				end
+				if lmag > 100 then
+					warn("Went back to safe CFrame.")
+					froot.CFrame = safeCF
+					froot.AssemblyLinearVelocity = Vector3.zero
+				end
+				if amag > 50 then
+					froot.AssemblyAngularVelocity = Vector3.zero
+				end
+			end)
+			
+			local a = function(v)
+				for _,v2 in pairs(v.Character:GetDescendants()) do
+					pcall(function()
+					v2.CanCollide = false
+					end)
+				end
 			end
-		end
-	end)
-end)
 
+			M.Disconn(Conns.FlingConn1)
+			for _,v in pairs(Players:GetPlayers()) do
+				if v.Name == player.Name then continue end
+				--print(v.Name,123)
+				a(v)
+				v.CharacterAdded:Connect(function()
+					a(v)
+					--print(v.Name,6767)
+				end)
+			end
+			Conns.FlingConn1 = Players.PlayerAdded:Connect(function(v)
+				if v.Name == player.Name then return end
+				--print(v.Name,123)
+				a(v)
+				v.CharacterAdded:Connect(function()
+					task.wait(0)
+					a(v)
+					--print(v.Name,6767)
+				end)
+			end)
 
--- Unantifling
-AC({"unantifling","uantifling","uaf","plrcollisions","pc"},function()
-	if C.Connections.AntiFling then
-		C.Disconnect("AntiFling")
-	end
-	
-	for _, v in pairs(Players:GetPlayers()) do
-		if v == Players.LocalPlayer then continue end
-		local charlo = v.character
-		if not charlo then continue end
-		C.ClipChar(charlo)
-	end
-end)
-
-
-
--- TEST To direction
-AC({"ttd","ttod","ttodirection"}, function(dir, offset, index)
-	local part = workspace.PEAK
-	local basePos = part.Position
-	local distance = (offset or 4) * (index or 1)
-
-	-- Get direction vector relative to part
-	local dir = string.lower(dir or "f")
-	local vec
-	if dir == "f" or dir == "forward" then
-		vec = part.CFrame.LookVector
-	elseif dir == "b" or dir == "backward" then
-		vec = -part.CFrame.LookVector
-	elseif dir == "r" or dir == "right" then
-		vec = part.CFrame.RightVector
-	elseif dir == "l" or dir == "left" then
-		vec = -part.CFrame.RightVector
-	elseif dir == "u" or dir == "up" then
-		vec = part.CFrame.UpVector
-	elseif dir == "d" or dir == "down" then
-		vec = -part.CFrame.UpVector
-	else
-		vec = part.CFrame.LookVector -- default forward
-	end
-
-	-- Offset relative to rotation
-	local targetPos = basePos + (vec * distance)
-
-	root.CFrame = CFrame.new(targetPos, targetPos + part.CFrame.LookVector)
-end)
-
-
--- REAL to direction
-AC({"td","tod","todirection"}, function(target, dir, offset, index)
-	if not target then return end
-	target = M.GetPlayerByType(player, target)
-	if target[2] then return end
-	target = target[1]
-	target = target.Character or target.CharacterAdded:Wait()
-	local rootB = target:WaitForChild("HumanoidRootPart")
-	if not rootB then return end
-	
-	local part = rootB
-	local basePos = part.Position
-	local distance = (offset or 4) * (index or 1)
-
-	-- Get direction vector relative to part
-	local dir = string.lower(dir or "f")
-	local vec
-	if dir == "f" or dir == "forward" then
-		vec = part.CFrame.LookVector
-	elseif dir == "b" or dir == "backward" then
-		vec = -part.CFrame.LookVector
-	elseif dir == "r" or dir == "right" then
-		vec = part.CFrame.RightVector
-	elseif dir == "l" or dir == "left" then
-		vec = -part.CFrame.RightVector
-	elseif dir == "u" or dir == "up" then
-		vec = part.CFrame.UpVector
-	elseif dir == "d" or dir == "down" then
-		vec = -part.CFrame.UpVector
-	else
-		vec = part.CFrame.LookVector -- default forward
-	end
-
-	-- Offset relative to rotation
-	local targetPos = basePos + (vec * distance)
-
-	root.CFrame = CFrame.new(targetPos, targetPos + part.CFrame.LookVector)
-end)
-
-
--- Loop to direction
-local LTDLV = nil
-local LTDATT = nil
-AC({"ltd","ltod","ltodirection"},function(target,dir,offset,index)
-	if C.Connections.LoopToDirection then
-		C.Disconnect("LoopToDirection")
-		pcall(function()
-			LTDLV:Destroy()
-			LTDLV = nil
-			LTDATT:Destroy()
-			LTDATT = nil
-		end)
-	end
-	
-	LTDLV, LTDATT = M.AppModLinVel(root, "LTD", math.huge, Vector3.zero)
-
-	C.Connections.LoopToDirection = RunService.Heartbeat:Connect(function()
-		local cmdStr = string.format("td %s %s %s %s", target or "", dir or "f", offset or "4", index or "1")
-		C.RunCmdStr(cmdStr)
-	end)
-end)
-
-
-
--- Unloop to direction
-AC({"ultd","ultod","ultodirection"},function()
-	C.Disconnect("LoopToDirection")
-	pcall(function()
-		LTDLV:Destroy()
-		LTDLV = nil
-		LTDATT:Destroy()
-		LTDATT = nil
-	end)
-end)
-
-
--- Dances system -- If it looks ai-ed then it is because I am too lazy to search for the dances.
-local DanceTracks = {} -- store current tracks
-
--- Animation IDs for R6 and R15
-local Dances = {
-	R6 = {
-		[1] = 182435998,   -- dance1 R6
-		[2] = 182436842,   -- dance2 R6
-		[3] = 182436935,   -- dance3 R6
+			task.delay(0,function()
+				local lv, a = UniService.ApplyLinVel(Oroot, Vector3.zero)
+				local av, a2 = UniService.ApplyAngVel(Oroot, Vector3.one*intensity)
+				a2:Destroy()
+				av.Attachment0 = a
+				M.InvisibleLV = lv
+				M.InvisibleAV = av
+			end)
+		end,
 	},
-	R15 = {
-		[1] = 507771019,   -- dance1 R15
-		[2] = 507776043,   -- dance2 R15
-		[3] = 507777268,   -- dance3 R15
+	unfling = {
+		a = {},
+		d = "Makes you stop flinging stuff.",
+		f = function()
+			local lv = M.InvisibleLV
+			local av = M.InvisibleAV
+			if not lv and not av then return end
+			lv.VectorVelocity = Vector3.zero
+			av.AngularVelocity = Vector3.zero
+			task.delay(0.1,function()
+				lv:Destroy()
+				av:Destroy()
+				M.Disconn(Conns.FlingConn0)
+				M.Disconn(Conns.FlingConn)
+				M.Disconn(Conns.FlingConn1)
+				M.RunCmd("unfaker")
+				hum.PlatformStand = false
+			end)
+		end,
+	},
+	playanim = {
+		a = {},
+		d = "Plays an animation by an Id.",
+		f = function(id)
+			id = tonumber(id) or 182435998
+			AnimService.PlayAnim(id)
+		end,
+	},
+	unplayanim = {
+		a = {"undance","und"},
+		d = "Plays an animation by an Id.",
+		f = function(id)
+			AnimService.Stop()
+		end,
+	},
+	playdance = {
+		a = {},
+		d = "Plays an dance from the DancesIds table.",
+		f = function(index)
+			index = tonumber(index) or 1
+			if UniService.RigType == "r15" then
+				AnimService.PlayAnim(M.DanceIds.r15[index])
+			else
+				AnimService.PlayAnim(M.DanceIds.r6[index])
+			end
+		end,
+	},
+	dance1={a={"d1"},d="Plays dances 1 from r6 and r15.",f=function()M.RunCmd("playdance","1")end},
+	dance2={a={"d2"},d="Plays dances 2 from r6 and r15.",f=function()M.RunCmd("playdance","2")end},
+	dance3={a={"d3"},d="Plays dances 3 from r6 and r15.",f=function()M.RunCmd("playdance","3")end},
+	
+	playemote = {
+		a = {},
+		d = "Plays an emote. Why a difference between animations and emotes? Don't know.",
+		f = function(id)
+			id = tonumber(id) or 126683101367289
+			AnimService.PlayEmote(id)
+			AnimService.PlayEmote(id)
+		end,
+	},
+	commands = {
+		a = {"cmds","viewcmds"},
+		d = "Views all of the commands with the commands info",
+		f = function()
+			print("COMMANDS:")
+			for cmd,info in pairs(M.Cmds) do
+				print("	"..cmd,"= {")
+				if info.a[1] then
+					print("		Aliases:",table.concat(info.a,", "))
+				else
+					print("		Aliases: None")
+				end
+				print("		Description:",info.d)
+				print("		Function:",info.f)
+				print("	}")
+			end
+		end,
+	},
+	spin = {
+		a = {},
+		d = "Spins your character horizontally on the Y-axis.",
+		f = function(value)
+			if M.SpinAV and M.SpinA then
+				M.SpinAV:Destroy()
+				M.SpinA:Destroy()
+				M.SpinAV = nil
+				M.SpinA = nil
+			end
+			value = tonumber(value) or 5
+			local av, a = UniService.ApplyAngVel(root, Vector3.new(0,value,0))
+			M.SpinAV = av
+			M.SpinA = a
+		end,
+	},
+	unspin = {
+		a = {},
+		d = "Stops spinning your character horizontally on the Y-axis.",
+		f = function()
+			if M.SpinAV and M.SpinA then
+				M.SpinAV:Destroy()
+				M.SpinA:Destroy()
+				M.SpinAV = nil
+				M.SpinA = nil
+			end
+		end,
+	},
+	massless = {
+		a = {"nomass","antimass"},
+		d = "Sets all your characters parts to massless. To set it to normal do rcm - Restore Collisions & Massless (Properties)",
+		f = function()
+			for _,v in pairs(char:GetDescendants()) do
+				if v:IsA("BasePart") then
+					v.Massless = true
+				end
+			end
+		end,
+	},
+	debugwebug = {
+		a = {"debug"},
+		d = "Prints out useless debug info.",
+		f = function(state)
+			if state == "true" or state == "1" then
+				state = true
+			elseif state == "false" or state == "0" then
+				state = false
+			else
+				state = not M.Debugwebug
+			end
+			M.Debugwebug = state
+			print("Debugging:",M.Debugwebug)
+		end,
+	},
+	globalmodification = {
+		a = {"glomod"},
+		d = "Sets a value from the global table, _G. Very buggy.",
+		f = function(...) -- Example: glomod JaysClientCmds.DanceIds.r6.1 = 6767
+			--[[ -- Since everything is seperated by spaces...
+			[1] = DanceIds.r6.1
+			[2] = "="
+			[3] = 6767
+			]]
+			local info = {...}
+			local path = info[1]
+			local equal = info[2]
+			local value = info[3]
+
+			if path and equal == "=" and value then -- This is from chatgpt ngl.
+				local pathinfo = path:split(".")
+
+				local current = _G -- Start from your main module table!
+
+				-- Go through the path until the last item
+				for i = 1, #pathinfo - 1 do
+					local key = pathinfo[i]
+					current = current[key]
+					if not current then
+						warn("Invalid path:", path)
+						return
+					end
+				end
+
+				local finalKey = pathinfo[#pathinfo]
+
+				-- Convert value types
+				local numVal = tonumber(value)
+				if numVal ~= nil then
+					value = numVal
+				elseif value == "true" then
+					value = true
+				elseif value == "false" then
+					value = false
+				elseif value == "nil" then
+					value = nil
+				end
+
+				current[finalKey] = value
+				print("Set", path, "to", value)
+			else
+				warn("Invalid syntax. Example: modmod DanceIds.r6.1 = 6767. I know luau is hard.")
+			end
+		end,
+	},
+	modulemodification = {
+		a = {"modmod"},
+		d = "Can modify the modules variables given a value. Go inside tables with .'s or something. Kinda like luau.",
+		f = function(...)
+			local a = table.concat({...}, " ")
+			M.RunString("glomod "..ModuleName.."."..a)
+		end,
+	},
+	globalfunctionrun = {
+		a = {"glorun"},
+		d = "Runs a function from the global table (_G) with optional arguments.",
+		f = function(...)
+			-- Example: glorun JaysClientCmds.DoStuff 123 hello true
+			local info = {...}
+			local path = info[1]
+
+			if not path then
+				warn("Invalid syntax. Example: glorun Table.FunctionName args...")
+				return
+			end
+
+			-- Split path & collect arguments
+			local pathinfo = path:split(".")
+			local args = {}
+			for i = 2, #info do
+				local v = info[i]
+				local num = tonumber(v)
+				if num ~= nil then
+					v = num
+				elseif v == "true" then
+					v = true
+				elseif v == "false" then
+					v = false
+				elseif v == "nil" then
+					v = nil
+				end
+				table.insert(args, v)
+			end
+
+			local current = _G
+			for i = 1, #pathinfo - 1 do
+				local key = pathinfo[i]
+				current = current[key]
+				if not current then
+					warn("Invalid path:", path)
+					return
+				end
+			end
+
+			local finalKey = pathinfo[#pathinfo]
+			local func = current[finalKey]
+
+			if typeof(func) == "function" then
+				print("🌀 Running global function:", path)
+				func(unpack(args))
+			else
+				warn("Path is not a function:", path)
+			end
+		end,
+	},
+	modulefunctionrun = {
+		a = {"modrun"},
+		d = "Runs a function from the main module (M) with optional arguments.",
+		f = function(...)
+			local a = table.concat({...}, " ")
+			M.RunString("glorun " .. ModuleName .. "." .. a)
+		end,
+	}
+}
+
+-- Print out commands if debugwebug
+if M.Debugwebug then
+	M.RunCmd("cmds")
+end
+
+-- Start up commands [If REAlLY needed] - And also other sih.
+-- Stuff
+
+M.DefaultWalkSpeed = hum.WalkSpeed
+local Faker = {}
+M.Faker = Faker
+Faker.char = nil -- Even though it's not gonna be in the table. Why not?
+Faker.root = nil -- These are meant to be the real characters parts not the fake.
+Faker.hum = nil
+Faker.Active = false
+
+M.DanceIds = {
+	r6 = {
+		[1] = 182435998,
+		[2] = 182436842,
+		[3] = 182436935
+	},
+	r15 = {
+		[1] = 507771019,
+		[2] = 507776043,
+		[3] = 507777268
 	},
 }
 
--- Helper to get humanoid + rig type
-local function GetHumanoidAndRig()
-	local char = player.Character
-	if not char then return end
-	local hum = char:FindFirstChildOfClass("Humanoid")
-	if not hum then return end
-	local rig = hum.RigType == Enum.HumanoidRigType.R15 and "R15" or "R6"
-	return hum, rig
-end
 
--- Play dance
-local function PlayDance(i)
-	local hum, rig = GetHumanoidAndRig()
-	if not hum then return end
 
-	-- stop current if one is playing
-	if DanceTracks[hum] then
-		DanceTracks[hum]:Stop()
-		DanceTracks[hum] = nil
-	end
-
-	local animId = Dances[rig][i]
-	if not animId then return end
-
-	local anim = Instance.new("Animation")
-	anim.AnimationId = "rbxassetid://" .. animId
-
-	local track = hum:LoadAnimation(anim)
-	track.Priority = Enum.AnimationPriority.Action
-	track.Looped = true
-	track:Play()
-
-	DanceTracks[hum] = track
-end
-
--- Stop dance
-local function StopDance()
-	local hum, _ = GetHumanoidAndRig()
-	if not hum then return end
-	if DanceTracks[hum] then
-		DanceTracks[hum]:Stop()
-		DanceTracks[hum] = nil
-	end
-end
-
--- Commands
-AC({"d1","dance1"}, function() PlayDance(1) end)
-AC({"d2","dance2"}, function() PlayDance(2) end)
-AC({"d3","dance3"}, function() PlayDance(3) end)
-AC({"und","undance"}, function() StopDance() end)
+task.wait(0.1) -- Command start up
