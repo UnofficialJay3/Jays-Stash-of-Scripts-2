@@ -23,7 +23,7 @@ local function GetModule(name,url)
 	print("Success from direct!\n")
 	return m
 end
-local UniService = GetModule("JaysUniService")
+local UniService = GetModule("JaysUniService","https://github.com/UnofficialJay3/Jays-Stash-of-Scripts-2/raw/refs/heads/main/JaysUniService.lua")
 --Self init
 local ModuleName = "JaysFlyinService"
 local M = {}
