@@ -84,21 +84,6 @@ hum.Died:Connect(OnDied)
 
 
 
--- Animation - It's always copied from a previous script 😔
-local function PlayFlyAnimation()
-	if UniService.RigType == "r15" then
-		AnimService.PlayAnim(animR15)
-	else
-		AnimService.PlayAnim(animR6)
-	end
-end
-
-local function StopFlyAnimation()
-	AnimService.Stop()
-end
-
-
-
 -- Change settings with EASE?
 function M.ChangeSettings(t)
 	local function ChangeSetting(s)
@@ -164,7 +149,7 @@ function M.Deactivate()
 	hum.PlatformStand = false
 	hum:ChangeState(Enum.HumanoidStateType.Freefall)
 	Conns.Conn = nil -- Why.
-	StopFlyAnimation()
+	AnimService.Stop()
 end
 
 
@@ -179,7 +164,11 @@ function M.Activate()
 	end
 	
 	if M.Anim then
-		PlayFlyAnimation()
+		if UniService.RigType == "r15" then
+			AnimService.PlayAnim(animR15)
+		else
+			AnimService.PlayAnim(animR6)
+		end
 	end
 	
 	if not lv and not av and not a then

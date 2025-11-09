@@ -24,7 +24,7 @@ _G.JaysUniService = C -- Jays Universal Service - Having the necessary tools.
 
 
 -- Main init
--- Services
+-- Services + other bs
 local Players = game:GetService("Players")
 local SoundsService = game:GetService("SoundService")
 local UIS = game:GetService("UserInputService")
@@ -33,7 +33,9 @@ local TCS = game:GetService("TextChatService")
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local StartGui = game:GetService("StarterGui")
 local cam = workspace.CurrentCamera
+local Lighting = game:GetService("Lighting")
 
 
 
@@ -50,7 +52,8 @@ C.Services = {
 	TCS = TCS,
 	TweenService = TweenService,
 	RunService = RunService,
-	ReplicatedStorage = ReplicatedStorage
+	ReplicatedStorage = ReplicatedStorage, -- I don't know why I abreviate services with 3 words. Just don't tell me.
+	Lighting = Lighting
 }
 
 
@@ -223,6 +226,7 @@ function C.PlayerType(lplayer: Player, inp: string | number)
 		local nearest = nil
 		local nearestDistance = math.huge
 		for _, player in ipairs(Players:GetPlayers()) do
+			if player == lplayer then continue end
 			local distance = (player.Character.HumanoidRootPart.Position - lplayer.Character.HumanoidRootPart.Position).Magnitude
 			if distance < nearestDistance then
 				nearest = player
@@ -234,6 +238,7 @@ function C.PlayerType(lplayer: Player, inp: string | number)
 		local farthest = nil
 		local farthestDistance = 0
 		for _, player in ipairs(Players:GetPlayers()) do
+			if player == lplayer then continue end
 			local distance = (player.Character.HumanoidRootPart.Position - lplayer.Character.HumanoidRootPart.Position).Magnitude
 			if distance > farthestDistance then
 				farthest = player
@@ -297,7 +302,7 @@ end
 
 
 
--- Jays UI style
+-- Jays UI style 1
 function C.JaysUIStyle(ui: Instance)
 	--if not ui:IsA("Frame") then return end -- for thing.
 	-- UI properties
@@ -345,6 +350,7 @@ end
 local function TTU(a,b) -- Table To UDim2
 	return UDim2.new(a[1],a[2],b[1],b[2])
 end
+C.TTU = TTU
 
 
 
@@ -492,7 +498,7 @@ function C.GetMoveVectorCam(vect: Vector3)
 	local camCF = cam.CFrame
 	local moveVect = C.GetMoveVector(vect)
 	vect = vect or Vector3.one
-	local f = Vector3.new(camCF.LookVector.X * vect.X, camCF.LookVector.Y * vect.Y, camCF.LookVector.Z * vect.Z).Unit
+	local f = Vector3.new(camCF.LookVector.X * vect.X, camCF.LookVector.Y * vect.Y,camCF.LookVector.Z*vect.Z).Unit
 	local r = Vector3.new(camCF.RightVector.X*vect.X, camCF.RightVector.Y*vect.Y, camCF.RightVector.Z*vect.Z).Unit
 	moveVect = (f * -moveVect.Z + r * moveVect.X)
 	return moveVect	
@@ -546,7 +552,256 @@ function AnimService.PlayEmote(id: number) -- Why is there even a difference?
 		hum:PlayEmote(tostring(id))
 		return
 	end
-
+	
+	-- Add emote
 	humdesc:AddEmote(tostring(id),id)
 	hum:PlayEmote(tostring(id))
 end
+
+
+-- Console
+function C.ShowConsole()
+	-- Check if the console is visible.
+	local s, is = pcall(function()
+		return StartGui:GetCore("DevConsoleVisible")
+	end)
+	
+	-- Toggle visibility
+	if s and is then
+		StartGui:SetCore("DevConsoleVisible", false)
+		return
+	end
+	StartGui:SetCore("DevConsoleVisible", true)
+end
+
+
+
+-- Apply Drag function
+function C.ApplyDrag(guiObject)
+	local dragging = false
+	local dragInput, dragStart, startPos
+
+	local function update(input)
+		local delta = input.Position - dragStart
+		guiObject.Position = UDim2.new(
+			startPos.X.Scale,
+			startPos.X.Offset + delta.X,
+			startPos.Y.Scale,
+			startPos.Y.Offset + delta.Y
+		)
+	end
+
+	guiObject.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 
+			or input.UserInputType == Enum.UserInputType.Touch then
+			dragging = true
+			dragStart = input.Position
+			startPos = guiObject.Position
+			input.Changed:Connect(function()
+				if input.UserInputState == Enum.UserInputState.End then
+					dragging = false
+				end
+			end)
+		end
+	end)
+
+	guiObject.InputChanged:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseMovement 
+			or input.UserInputType == Enum.UserInputType.Touch then
+			dragInput = input
+		end
+	end)
+
+	UIS.InputChanged:Connect(function(input)
+		if input == dragInput and dragging then
+			update(input)
+		end
+	end)
+end
+
+
+
+-- Jays UI Style 2
+function C.JaysUI2(obj)
+	--if typeof(obj)~="Frame"then warn("Given object is not a frame!")return end-- Force type checker!
+	-- Standerd
+	local m = nil
+	obj.BackgroundColor3 = Color3.fromRGB(7,0,23)
+	obj.BackgroundTransparency = 0.15
+	m = Instance.new("UICorner",obj)
+	m.CornerRadius = UDim.new(1,0)
+	m = Instance.new("UIStroke",obj)
+	m.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	m.Color = Color3.new(1,1,1)
+	m.Thickness = 3
+	m.Transparency = 0.1
+	
+	-- Texts
+	if obj.Text ~= nil then
+		obj.TextColor3 = Color3.new(1,1,1)
+		obj.TextScaled = true
+		obj.Font = Enum.Font.SourceSans
+		m = Instance.new("UIStroke",obj)
+		m.ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual
+		m.Color = Color3.new(1,1,1)
+		m.Thickness = 2
+		m.Transparency = 0.9
+	end
+end
+
+
+
+-- UI... (For the future. Seperate project!)
+--local UIService = {}
+--C.UIService = UIService
+
+--function UIService.init_instance(obj)
+--	local self = {}
+--	self.Instance = obj
+--	self.
+--end
+
+
+
+local CLS = {} -- Chat Listener
+C.CLS = CLS
+CLS.Folder = nil
+CLS.PlayersHooked = {} -- Has Bindable events so other scripts can use!!! And a connection to that player.
+CLS.HookedAllConn = nil
+--[[
+CLS.PlayersHooked.MrBeast = {
+	b = BindableEvent
+	c = Connection
+}
+]]
+
+
+
+-- Methods!!!
+
+function CLS.HandleFolderment()
+	if not CLS.Folder then
+		CLS.Folder = Instance.new("Folder",ReplicatedStorage)
+		CLS.Folder.Name = "CLS_HPS_Events"
+	end
+	return CLS.Folder
+end
+
+--[[ Hook player - Will listen for when the player chats in, the chat.
+Returns a BindableEvent that you can use.
+Also the bindable events are in a folder called "CLS_HPS_Events" in repli-storage
+]]
+function CLS.HookPlayer(player)
+	local fold = CLS.HandleFolderment()
+	
+	-- Check if the player already exists in HookedPlayers, therefore do nothing.
+	if CLS.PlayersHooked[player] then return end
+	
+	-- The main stuff, bindables
+	local b = Instance.new("BindableEvent",fold)
+	local c = nil
+	local c0 = nil
+	b.Name = player.Name
+	
+	-- Firing the bindable event
+	if C.ChatVersion == "Modern" then
+		c = TCS.MessageReceived:Connect(function(i)
+			local target = Players:GetPlayerByUserId(i.TextSource.UserId) or nil
+			if not i.TextSource or target ~= player then return end
+			local msg = i.Text
+			b:Fire(msg,target)
+		end)
+	else
+		c = player.Chatted:Connect(function(msg)
+			b:Fire(msg,player)
+		end)
+	end
+	
+	-- When player leaves disconnect any connections
+	c0 = Players.PlayerRemoving:Connect(function(player)
+		if player.Name ~= b.Name then return end
+		b:Destroy()
+		c:Disconnect()
+		c0:Disconnect()
+	end)
+	
+	-- Store the player in HookedPlayers
+	CLS.PlayersHooked[player] = {
+		b = b,
+		c = c,
+		c0 = c0
+	}
+	
+	return b, c, fold
+end
+
+--[[ Unhook player - Unhooks the player and disconnects all connections.
+Deletes the bindable event and deletes the player from HookedPlayers.
+]]
+function CLS.UnhookPlayer(player)
+	local fold = CLS.HandleFolderment()
+	
+	if not CLS.PlayersHooked[player] then return end
+	
+	local b = CLS.PlayersHooked[player].b
+	local c = CLS.PlayersHooked[player].c
+	local c0 = CLS.PlayersHooked[player].c0
+	
+	b:Destroy()
+	c:Disconnect()
+	c0:Disconnect()
+end
+
+
+
+--[[ Hooks every player and bundles all messages into 1 bindable event.]]
+function CLS.HookAll()
+	local fold = CLS.HandleFolderment()
+	
+	if CLS.HookedAllConn then return end
+	
+	local b = Instance.new("BindableEvent",fold)
+	b.Name = "HookedAll"
+	
+	if C.ChatVersion == "Modern" then
+		CLS.HookedAllConn = TCS.MessageReceived:Connect(function(i)
+			local target = Players:GetPlayerByUserId(i.TextSource.UserId)
+			if not i.TextSource or not Players:FindFirstChild(target.Name) then return end
+			local msg = i.Text
+			
+			b:Fire(msg,target)
+			
+			--print("Message:",msg)
+			--print("Player:",target.Name)
+		end)
+	else
+		CLS.HookedAllConn = {} -- Contains all connections for each player
+		-- Loop all players
+		for _, player in pairs(Players:GetPlayers()) do
+			CLS.HookedAllConn[player.Name] = player.Chatted:Connect(function(msg)
+				b:Fire(msg,player)
+			end)
+		end
+		
+		-- Add new players and remove players if leaves
+		Players.PlayerAdded:Connect(function(player)
+			CLS.HookedAllConn[player.Name] = player.Chatted:Connect(function(msg)
+				b:Fire(msg,player)
+			end)
+		end)
+		Players.PlayerRemoving:Connect(function(player)
+			CLS.HookedAllConn[player.Name]:Disconnect()
+			CLS.HookedAllConn[player.Name] = nil
+		end)
+	end
+	
+	return b, CLS.HookedAllConn, fold
+end
+
+
+--local bind = CLS.HookPlayer(player)
+
+--bind.Event:Connect(function(msg, player)
+--	print("Message:",msg)
+--	print("Player:",player.Name)
+--end)

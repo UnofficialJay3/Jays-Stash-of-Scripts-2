@@ -40,22 +40,113 @@ M.Keybind = "Semicolon" -- Needs capilization pls
 M.OldSchool = true -- The "Old school" way of the bar.
 M.Debugwebug = false -- Gotta debug what's a webug!
 M.EmoteOnCmd = true -- If no other command works than try to use it as a emote I guess.
+M.ChatPrefixes = {";",":","!",".","/"}
+M.AllowNoChatPrefix = true -- If true, then the player can use commands without the prefixes in ChatPrefixes.
 
 
 
 -- Main init
 -- Services
-Z = UniService.Services
-local CAS, RunService, UIS, Players  = Z.CAS, Z.RunService, Z.UIS, Z.Players
+--[[Z = UniService.Services]]
+local CAS, RunService, UIS, Players, Lighting = -- Just so that I can get the.
+	game:GetService("ContextActionService"),
+	game:GetService("RunService"),
+	game:GetService("UserInputService"),
+	game:GetService("Players"),
+	game:GetService("Lighting")
 
 -- Variables
 local player, plrgui, char, hum, root = UniService.GetChar(game.Players.LocalPlayer,true)
 local BarActive = false
 local BIS = UniService.BIS
 local AnimService = UniService.AnimService
+local CLS = UniService.CLS
 M.Cmds = {}
 local cam = workspace.CurrentCamera
+M.Gui = nil
+M.Button = nil
+-- Main gui (No old school)
+M.Bar = nil
+M.Title = nil
 
+-- Setup default props for lighting
+local DefaultLightingProps = {}
+--for p,v in pairs(Lighting) do -- :( It doesn't work.
+--	pcall(function()
+--		DefaultLightingProps[p] = v
+--	end)
+--end
+
+--local function AddProp(n)
+--	if Lighting[n] then
+--		DefaultLightingProps[n] = Lighting[n]
+--	end
+--end
+--AddProp("Ambient")AddProp("Brightness")AddProp("ColorShift")
+
+
+-- GUI
+local function Gui()
+	-- 2 buttons 1 gui.
+	local ApplyDrag = UniService.ApplyDrag
+	
+	local gui = Instance.new("ScreenGui",plrgui)
+	M.Gui = gui
+	gui.IgnoreGuiInset = true
+	gui.Name = "JCC_GUI"..UniService.RandomString(20.67)
+	
+	local TTU = UniService.TTU
+	M.Button = Instance.new("TextButton",gui)
+	local btn = M.Button
+	btn.AnchorPoint = Vector2.new(0.5,0.5)
+	btn.Position = TTU({0.909, 0},{0.301, 0})
+	btn.Size = TTU({0, 100},{0, 30})
+	btn.Text = "Jay's Cmds"
+	--local p = Instance.new("UIDragDetector",M.Button)
+	ApplyDrag(btn)
+	UniService.JaysUIStyle(btn)
+	
+	
+	M.ShowConsole = Instance.new("TextButton",gui)
+	local showcon = M.ShowConsole
+	showcon.AnchorPoint = Vector2.new(0.5,0.5)
+	showcon.Position = TTU({0.709, 0},{0.301, 0})
+	showcon.Size = TTU({0, 100},{0, 30})
+	showcon.Text = "Console"
+	UniService.JaysUIStyle(showcon)
+	ApplyDrag(showcon)
+	--p = Instance.new("UIDragDetector",showcon)
+	
+	
+	
+	Conns.JaysClientCmds_ShowBarBtn = btn.Activated:Connect(function()M.OpenCloseBar()end)
+	
+	Conns.JaysClientCmds_ShowConsoleBtn = showcon.Activated:Connect(UniService.ShowConsole)
+	
+	
+	
+	-- Main gui
+	if M.OldSchool then return end -- If we usin' old school then what's the point of makin' alla this?
+	local bar = Instance.new("TextBox",gui)
+	M.Bar = bar
+	bar.AnchorPoint = Vector2.new(0.5,0.5)
+	bar.Position = TTU({0.5, 0},{0.107, 0})
+	bar.Size = TTU({0.975, 0},{0.06, 0})
+	bar.PlaceholderText = "Type a command here."
+	UniService.JaysUI2(bar)
+	title.Visible = false
+	
+	local title = Instance.new("TextLabel",gui)
+	M.Title = title
+	title.AnchorPoint = Vector2.new(0.5,0.5)
+	title.Position = TTU({0.5, 0},{0.037, 0})
+	title.Size = TTU({0.232, 0},{0.053, 0})
+	title.Text = "Jay's Client Cmds"
+	UniService.JaysUI2(title)
+	title.Visible = false
+end
+
+-- On died
 local function OnDied()
 	local D = M.Disconn
 	D(Conns.SitFlyConn)
@@ -70,14 +161,19 @@ local function OnDied()
 	--D(Conns.FlingConn1)
 	M.SpinAV = nil
 	M.SpinA = nil
+	
+	M.RunCmd("unfaker")
 end
+
+-- On char
 local function OnChar()
 	player, plrgui, char, hum, root = UniService.GetChar(game.Players.LocalPlayer,true)
 	hum.Died:Connect(OnDied)
+	Gui()
 end
 player.CharacterAdded:Connect(OnChar)
 hum.Died:Connect(OnDied)
-
+Gui()
 
 
 
@@ -86,8 +182,11 @@ hum.Died:Connect(OnDied)
 
 
 -- Open close bar thinggy
-local function OpenCloseBar(_,state)
-	if state ~= Enum.UserInputState.Begin then return end
+function M.OpenCloseBar(_,state)
+	if state then
+		if state ~= Enum.UserInputState.Begin then return end
+	end
+	
 	BarActive = not BarActive
 	if M.OldSchool then -- Easy, UniService got my back, but just not GOOD!
 		if M.Debugwebug then print("Bar activated from OldSchool.") end
@@ -104,25 +203,30 @@ local function OpenCloseBar(_,state)
 			end)
 		end
 		return
+	else
+		
 	end
 end
 
-CAS:BindAction("OpenCloseBar",OpenCloseBar,false,Enum.KeyCode[M.Keybind])
+CAS:BindAction("OpenCloseBar",M.OpenCloseBar,false,Enum.KeyCode[M.Keybind])
 
+
+
+-- Update force quit
 function M.ForceQuit()
-		warn("Force quitted module",ModuleName)
-		-- Initiate shutdown other stuff
-		for _,c in pairs(M.Conns) do
-			M.Disconn(c)
-		end
-		for _,t in pairs(M.Tasks) do
-			M.CloseTask(t)
-		end
-		-- Unbind OpenClsoeBar acrtion
-		CAS:UnbindAction("OpenCloseBar")
-		-- Initiate real shutdown
-		_G[ModuleName] = nil -- WOW!
+	warn("Force quitted module",ModuleName)
+	-- Initiate shutdown other stuff
+	for _,c in pairs(M.Conns) do
+		M.Disconn(c)
 	end
+	for _,t in pairs(M.Tasks) do
+		M.CloseTask(t)
+	end
+	-- Unbind OpenClsoeBar acrtion
+	CAS:UnbindAction("OpenCloseBar")
+	-- Initiate real shutdown
+	_G[ModuleName] = nil
+end
 
 
 
@@ -161,6 +265,30 @@ function M.RunString(str)
 	local cmd, args = UniService.GetCmd(str)
 	M.RunCmd(cmd,unpack(args))
 end
+
+
+
+-- Chat commands
+local PlayerChatEvent = CLS.HookPlayer(player)
+PlayerChatEvent.Event:Connect(function(msg, player)
+	local foundPrefix = nil
+	for _, prefix in ipairs(M.ChatPrefixes) do
+		if string.sub(msg, 1, #prefix) == prefix then
+			foundPrefix = prefix
+			break
+		end
+	end
+	
+	if foundPrefix then
+		msg = string.sub(msg, #foundPrefix + 1)
+		M.RunString(msg)
+	else
+		if not M.AllowNoChatPrefix then return end
+		M.RunString(msg)
+	end
+end)
+
+
 
 
 
@@ -532,6 +660,13 @@ M.Cmds = {
 
 			-- a
 			M.RunCmd("clip")
+			Conns.FakerConn1 = char.ChildRemoved:Connect(function(child)
+				local cf = root.CFrame
+				if child:IsA("BasePart") then
+					M.RunCmd("unfaker")
+				end
+				M.RunCmd("re")
+			end)
 		end,
 	},
 	unfaker = {
@@ -964,6 +1099,99 @@ M.Cmds = {
 		f = function(...)
 			local a = table.concat({...}, " ")
 			M.RunString("glorun " .. ModuleName .. "." .. a)
+		end,
+	},
+	to = {
+		a = {"teleportto"},
+		d = "Makes you teleport to a player with a given username.",
+		f = function(target)
+			target = UniService.SinglePlayerType(player, target)
+			local root2 = UniService.GetChar(target).root
+			
+			if not root or not root2 then return end
+			
+			root.CFrame = root2.CFrame
+		end,
+	},
+	nigthvision = {
+		a = {"nv"},
+		d = "Gives you night vision like vision! Makes dark places look brighter!",
+		f = function()
+			if M.NVActive then
+				M.NVActive = false
+				
+				-- Reset lighting props
+				for p,v in pairs(DefaultLightingProps) do
+					pcall(function()
+						Lighting[p] = v
+					end)
+				end
+				
+				return "¯\_(ツ)_/¯" -- Why not ¯\_(ツ)_/¯
+			end
+			
+			M.NVActive = true
+			
+			Lighting.Ambient = Color3.new(1,1,1)
+			Lighting.Brightness = 3
+			Lighting.EnvironmentDiffuseScale = 1
+			Lighting.GlobalShadows = false
+			Lighting.OutdoorAmbient = Color3.new(1,1,1)
+		end,
+	},
+	fieldofview = {
+		a = {"fov"},
+		d = "Changes your FOV. I don't know why the original name is abreviated.",
+		f = function(value)
+			value = tonumber(value) or 70
+			cam.FieldOfView = value
+		end,
+	},
+	highzoom = {
+		a = {},
+		d = "Makes your max zoom, well, really high! Well infinately.",
+		f = function()
+			player.CameraMaxZoomDistance = math.huge
+		end,
+	},
+	trippyzoom = {
+		a = {},
+		d = "Sets your fpv low and your highzoom, well, high!",
+		f = function()
+			cam.FieldOfView = -math.huge
+			player.CameraMaxZoomDistance = math.huge
+		end,
+	},
+	loopto = {
+		a = {"lto","lt"},
+		d = "Makes you loop teleport to a person.",
+		f = function(target)
+			if Conns.LoopToConn then
+				M.Disconn(Conns.LoopToConn)
+			end
+			Conns.LoopToConn = RunService.Heartbeat:Connect(function()
+				M.RunCmd("to",target)
+			end)
+		end,
+	},
+	unloopto = {
+		a = {"ult"},
+		d = "Makes you stop loop teleporting to a player.",
+		f = function()
+			M.Disconn(Conns.LoopToConn)
+		end,
+	},
+	loopcommand = {
+		a = {"lcmd"},
+		d = "With a given commands, loops that command with the amount argument. Default is 5.",
+		f = function(loops, ...)
+			print(...)
+			loops = tonumber(loops) or 5
+			for i = 1, loops do
+				--print(table.concat({...}," "))
+				M.RunString(table.concat({...}," "))
+				task.wait(0.01)
+			end
 		end,
 	}
 }
