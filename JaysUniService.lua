@@ -79,6 +79,7 @@ function C.InitModule(module, modulename) -- PLEASE DO NOT MULTI RUN THIS FUNCTI
 	print("Module",modulename,"added and initated!")
 	module.Conns = {} -- Connections
 	module.Tasks = {} -- Coroutines
+	module.Configs = {} -- Configuration (Temp)
 	function module.Disconn(conn)
 		pcall(function()
 		conn:Disconnect()
@@ -560,7 +561,13 @@ end
 
 
 -- Console
-function C.ShowConsole()
+function C.ShowConsole(state)
+	-- Set state instead of, ya know.
+	if state ~= nil then
+		StartGui:SetCore("DevConsoleVisible", state)
+		return
+	end
+	
 	-- Check if the console is visible.
 	local s, is = pcall(function()
 		return StartGui:GetCore("DevConsoleVisible")

@@ -2,17 +2,13 @@
 local Z
 -- Get module
 local function GetModule(name,url)
-	print("Searching module",name..":")
-	print("	Searching module directly...")
 	local m = _G[name]
 	if not m then
 		warn("	Failed from direct.")
-		print("	Searching module with url...")
 		local s,r = pcall(function()
 			loadstring(game:HttpGet(url))()
 		end)
 		if s then
-			print("Success from url!\n")
 			m = _G[name]
 			return m
 		else
@@ -20,7 +16,6 @@ local function GetModule(name,url)
 			return
 		end
 	end
-	print("Success from direct!\n")
 	return m
 end
 local UniService = GetModule("JaysUniService","https://github.com/UnofficialJay3/Jays-Stash-of-Scripts-2/raw/refs/heads/main/JaysUniService.lua")

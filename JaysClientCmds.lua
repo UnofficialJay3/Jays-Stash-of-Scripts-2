@@ -2,17 +2,13 @@
 local Z
 -- Get module
 local function GetModule(name,url)
-	print("Searching module",name..":")
-	print("	Searching module directly...")
 	local m = _G[name]
 	if not m then
 		warn("	Failed from direct.")
-		print("	Searching module with url...")
 		local s,r = pcall(function()
 			loadstring(game:HttpGet(url))()
 		end)
 		if s then
-			print("Success from url!\n")
 			m = _G[name]
 			return m
 		else
@@ -20,7 +16,6 @@ local function GetModule(name,url)
 			return
 		end
 	end
-	print("Success from direct!\n")
 	return m
 end
 local UniService = GetModule("JaysUniService","https://github.com/UnofficialJay3/Jays-Stash-of-Scripts-2/raw/refs/heads/main/JaysUniService.lua")
@@ -32,6 +27,7 @@ _G[ModuleName] = M
 UniService.InitModule(M,ModuleName)
 local Conns = M.Tasks
 local Tasks = M.Conns
+local Configs = M.Configs
 
 
 
@@ -41,7 +37,7 @@ M.OldSchool = true -- The "Old school" way of the bar.
 M.Debugwebug = false -- Gotta debug what's a webug!
 M.EmoteOnCmd = true -- If no other command works than try to use it as a emote I guess.
 M.ChatPrefixes = {";",":","!",".","/"}
-M.AllowNoChatPrefix = true -- If true, then the player can use commands without the prefixes in ChatPrefixes.
+M.AllowNoChatPrefix = false -- If true, then the player can use commands without the prefixes in ChatPrefixes.
 
 
 
@@ -121,7 +117,9 @@ local function Gui()
 	
 	Conns.JaysClientCmds_ShowBarBtn = btn.Activated:Connect(function()M.OpenCloseBar()end)
 	
-	Conns.JaysClientCmds_ShowConsoleBtn = showcon.Activated:Connect(UniService.ShowConsole)
+	Conns.JaysClientCmds_ShowConsoleBtn = showcon.Activated:Connect(function()
+		UniService.ShowConsole()
+	end)
 	
 	
 	
@@ -153,16 +151,11 @@ local function OnDied()
 	D(Conns.JumpConn)
 	D(Conns.InfWalkSpeed)
 	D(Conns.CFrameWalkConn)
-	D(Conns.NoclipConn)
-	D(Conns.InvisibleConn)
-	D(Conns.FakerConn)
-	D(Conns.FlingConn0)
+	M.Disconn(Conns.NoclipConns[char.Name])
 	D(Conns.FlingConn)
-	--D(Conns.FlingConn1)
-	M.SpinAV = nil
-	M.SpinA = nil
-	
-	M.RunCmd("unfaker")
+	--D(Conns.GravityConn)
+	--M.GravityVF = nil
+	--M.GravityA = nil
 end
 
 -- On char
@@ -192,7 +185,7 @@ function M.OpenCloseBar(_,state)
 		if M.Debugwebug then print("Bar activated from OldSchool.") end
 		if BarActive then
 			BarActive = true
-			local box = BIS.Start("JS - Jays Client Cmds", "JaysScripts - Old school box which is bad and for testing.", "Type a command.")
+			local box = BIS.Start("JS - Jays Client Cmds", "JaysScripts - Old school box which is bad and for testing.", "Type a command, type help for help!")
 			box.FocusLost:Connect(function(ep)
 				if not ep then BarActive = false return end
 				local str = box.Text
@@ -230,9 +223,11 @@ end
 
 
 
--- Run command
-function M.RunCmd(n,...)
+-- Find command
+function M.FindCmd(n)
 	local q = 0
+	local origname
+	local aliases
 	if M.Debugwebug then print("Searching command",n.."...") end
 	n = n:lower()
 	local cmd = M.Cmds[n] -- Search directly
@@ -242,6 +237,8 @@ function M.RunCmd(n,...)
 			if table.find(v.a,n) then
 				if M.Debugwebug then print("Found command!",i,"with alias",n) end
 				cmd = M.Cmds[i]
+				origname = i
+				aliases = v.a
 				break
 			end
 			if M.Debugwebug then print("	Current cmd:",i,"aliases:",table.concat(v.a,", ")) end
@@ -249,13 +246,27 @@ function M.RunCmd(n,...)
 		end
 		if M.Debugwebug then print("Total searches:",q) end
 		if not cmd then
-			warn("Failed to find command with name",n)
+			if M.Debugwebug then warn("Failed to find command with name",n) end
 			if M.EmoteOnCmd then pcall(function() AnimService.PlayEmote(tostring(n))end) end
 			return
 		end
 	else
+		origname = n
+		aliases = cmd.a
 		if M.Debugwebug then print("	Found directly!") end
 	end
+	if M.Debugwebug then
+		print("	Original name:",origname)
+		print("	Aliases:",table.concat(aliases,", "))
+	end
+	
+	return cmd, origname, aliases, cmd.d, cmd.f
+end
+
+-- Run command
+function M.RunCmd(n,...)
+	local cmd = M.FindCmd(n)
+	if not cmd then return end
 	if M.Debugwebug then print("Ran command",n) end
 	cmd.f(...)
 end
@@ -394,6 +405,10 @@ M.Cmds = {
 		a = {},
 		d = "Disables you to fly.",
 		f = function()
+			if Conns.FlingConn then
+				M.RunCmd("unfling")
+			end
+			
 			M.Disconn(Conns.SitFlyConn)
 			FlyService.Deactivate()
 		end
@@ -526,9 +541,9 @@ M.Cmds = {
 			M.Disconn(Conns.InfWalkSpeed)
 		end,
 	},
-	cmdinfo = {
+	cmdinfodeprecated0 = {
 		a = {},
-		d = "Views an commands info.",
+		d = "DEPRECATED COMMAND. PLEASE DO NOT USE!",
 		f = function(cmd)
 			local name = cmd
 			cmd = table.find(M.Cmds,cmd)
@@ -570,9 +585,9 @@ M.Cmds = {
 			hum.WalkSpeed = M.DefaultWalkSpeed
 		end,
 	},
-	restorecollisionsmassless = {
-		a = {"rcm"},
-		d = "Restores characters properties like CanCollide and Massless.",
+	restorecollisionsmasslessdeprecated0 = {
+		a = {},
+		d = "DEPRECATED COMMAND. PLEASE DO NOT USE!",
 		f = function(playername)
 			if not playername then playername = player.Name end
 			local target = UniService.SinglePlayerType(player, playername)
@@ -589,9 +604,9 @@ M.Cmds = {
 			end
 		end,
 	},
-	noclip = {
+	noclipdeprecated0 = {
 		a = {},
-		d = "Disables your collisions but hipheight saves you from falling.",
+		d = "DEPRECATED COMMAND. PLEASE DO NOT USE!",
 		f = function(playername)
 			if not playername then playername = player.Name end
 			local target = UniService.SinglePlayerType(player, playername)
@@ -605,17 +620,17 @@ M.Cmds = {
 			end)
 		end,
 	},
-	clip = {
-		a = {"unnoclip"},
-		d = "Un-noclips you so you can collide stuff.",
+	clipdeprecated0 = {
+		a = {},
+		d = "DEPRECATED COMMAND. PLEASE DO NOT USE!",
 		f = function()
 			M.Disconn(Conns.NoclipConn)
 			M.RunCmd("rcm")
 		end,
 	},
-	faker = {
-		a = {"clone"},
-		d = "Makes a fake character that you control, but your real character stays still. VERY UNSTABLE (I THINK...)",
+	fakerdeprecated0 = {
+		a = {},
+		d = "DEPRECATED COMMAND. PLEASE DO NOT USE!",
 		f = function()
 			if M.Faker.Active then return end
 			M.Faker.Active = true
@@ -660,6 +675,7 @@ M.Cmds = {
 
 			-- a
 			M.RunCmd("clip")
+			M.Disconn("FakerConn1")
 			Conns.FakerConn1 = char.ChildRemoved:Connect(function(child)
 				local cf = root.CFrame
 				if child:IsA("BasePart") then
@@ -669,12 +685,14 @@ M.Cmds = {
 			end)
 		end,
 	},
-	unfaker = {
-		a = {"unclone"},
-		d = "Makes you go back to your normal character and destroys the clone.",
+	unfakerdeprecated0 = {
+		a = {},
+		d = "DEPRECATED COMMAND. PLEASE DO NOT USE!",
 		f = function()
 			M.Faker.Active = false
 			M.Disconn(Conns.FakerConn)
+			M.Disconn("FakerConn0")
+			M.Disconn("FakerConn1")	
 			local Faker = M.Faker
 			Faker.root.CFrame = root.CFrame
 			char:Destroy()
@@ -695,9 +713,9 @@ M.Cmds = {
 			M.RunCmd("clip")
 		end,
 	},
-	invisible = {
-		a = {"invis"},
-		d = "Makes you invisible. Uses faker command (Does auto) and moves the real character far away.",
+	invisibledeprecated0 = {
+		a = {},
+		d = "DEPRECATED COMMAND. PLEASE DO NOT USE!",
 		f = function(farintensity)
 			if M.Faker.Active then return end
 			local origcf = root.CFrame
@@ -733,9 +751,9 @@ M.Cmds = {
 			end)
 		end,
 	},
-	visible = {
-		a = {"vis"},
-		d = "Makes you visible.",
+	visibledeprecated0 = {
+		a = {},
+		d = "DEPRECATED COMMAND. PLEASE DO NOT USE!",
 		f = function()
 			M.Disconn(Conns.InvisibleConn)
 			M.RunCmd("unfaker")
@@ -762,9 +780,9 @@ M.Cmds = {
 			cam.CameraSubject = hum
 		end,
 	},
-	fling = {
+	flingdeprecated0 = {
 		a = {},
-		d = "Flings anything that is unachored! On contact to your local player. VERY UNSTABLE...",
+		d = "DEPRECATED COMMAND. PLEASE DO NOT USE!",
 		f = function(intensity)
 			if M.Faker.Active then return end
 			intensity = intensity or 1e35
@@ -851,9 +869,9 @@ M.Cmds = {
 			end)
 		end,
 	},
-	unfling = {
+	unflingdeprecated0 = {
 		a = {},
-		d = "Makes you stop flinging stuff.",
+		d = "DEPRECATED COMMAND. PLEASE DO NOT USE!",
 		f = function()
 			local lv = M.InvisibleLV
 			local av = M.InvisibleAV
@@ -875,12 +893,22 @@ M.Cmds = {
 		a = {},
 		d = "Plays an animation by an Id.",
 		f = function(id)
-			id = tonumber(id) or 182435998
+			local orig = id
+			id = tonumber(id) or nil
+			if id == nil then
+				if UniService.RigType == "r6" then
+					for i,v in pairs(M.GenericAnimations.r6) do
+						if i ~= orig then continue end
+						id = v
+						break
+					end
+				end
+			end
 			AnimService.PlayAnim(id)
 		end,
 	},
 	unplayanim = {
-		a = {"undance","und"},
+		a = {"undance","und","unanim"},
 		d = "Plays an animation by an Id.",
 		f = function(id)
 			AnimService.Stop()
@@ -911,9 +939,9 @@ M.Cmds = {
 			AnimService.PlayEmote(id)
 		end,
 	},
-	commands = {
+	commandsdeprecated0 = {
 		a = {"cmds","viewcmds"},
-		d = "Views all of the commands with the commands info",
+		d = "DEPRECATED COMMAND. PLEASE DO NOT USE!",
 		f = function()
 			print("COMMANDS:")
 			for cmd,info in pairs(M.Cmds) do
@@ -1115,7 +1143,7 @@ M.Cmds = {
 	},
 	nigthvision = {
 		a = {"nv"},
-		d = "Gives you night vision like vision! Makes dark places look brighter!",
+		d = "Gives you night vision like vision! Makes dark places look brighter! NO reverting.",
 		f = function()
 			if M.NVActive then
 				M.NVActive = false
@@ -1193,6 +1221,580 @@ M.Cmds = {
 				task.wait(0.01)
 			end
 		end,
+	},
+	rcm = {
+		a = {"restorecollisionsmassless"},
+		d = "Restores the original values of collisions and massless properties.",
+		f = function(TARGET)
+			if not TARGET then
+				TARGET = char
+			end
+			
+			for _,v in pairs(TARGET:GetDescendants()) do
+				local n = v.Name
+				if not v:IsA("BasePart") then continue end
+				v.CanCollide = false
+				v.Massless = false
+				if n == "Head" and UniService.RigType == "r15" then continue end
+				if n == "Head" or n == "Torso" or n == "LowerTorso" or n == "UpperTorso" then
+					v.CanCollide = true
+				end
+			end
+		end,
+	},
+	noclip = {
+		a = {},
+		d = "Makes you pass through walls with no care!",
+		f = function(TARGET)
+			if not TARGET then
+				TARGET = char
+			end
+			
+			if Conns.NoclipConns[TARGET.Name] then M.Disconn(Conns.NoclipConns[TARGET.Name]) end
+			
+			Conns.NoclipConns[TARGET.Name] = RunService.Stepped:Connect(function()
+				for _,v in pairs(TARGET:GetDescendants()) do
+					if not v:IsA("BasePart") then continue end
+					v.CanCollide = false
+				end
+			end)
+		end,
+	},
+	clip = {
+		a = {},
+		d = "Makes you DON'T pass through wall. With care. :(",
+		f = function(TARGET)
+			if not TARGET then
+				TARGET = char
+			end
+			
+			M.Disconn(Conns.NoclipConns[TARGET.Name])
+			
+			M.RunCmd("rcm", TARGET)
+		end,
+	},
+	faker = {
+		a = {"clone"},
+		d = "The new faker cmd. Makes a clone of yourself and your real character stays there. VERY UNSTABLE!!! Say in chat unfaker or ;unfaker to revert if anything goes wrong.",
+		f = function()
+			local Faker = M.Faker
+			-- If faker already active
+			if Faker.char then
+				M.RunCmd("unfaker")
+				task.wait(0)
+			end
+			
+			-- INIT
+			-- Set variables
+			Faker.Rchar = char
+			Faker.Rroot = root
+			Faker.Rhum = hum
+			char.Archivable = true -- Set archivable
+			
+			-- Cloning
+			char = char:Clone()
+			char.Name = "Faker_"..player.Name
+			char.Parent = workspace
+			root = char:WaitForChild("HumanoidRootPart")
+			hum = char:WaitForChild("Humanoid")
+			Faker.char = char
+			Faker.root = root
+			Faker.hum = hum
+			
+			-- Initing clone
+			player.Character = char -- New character
+			cam.CameraSubject = hum
+			
+			-- Make real char opaque
+			for _,v in pairs(Faker.Rchar:GetDescendants()) do
+				if not v:IsA("BasePart") then continue end
+				v.Transparency = 0.5
+			end
+			
+			-- Make real char noclippable
+			M.RunCmd("noclip", Faker.Rchar)
+			
+			-- Make animate script re-alived
+			local animate = char:WaitForChild("Animate")
+			animate.Enabled = false
+			animate.Enabled = true
+			
+			
+			
+			for _,v in pairs(Faker.Conns) do
+				M.Disconn(v)
+				v = nil
+			end
+			-- BACK UP METHODS (When something is wrong with the fake char)
+			-- When char dies
+			Faker.Conns[1] = hum.Died:Connect(function()
+				warn("Faker - BACK UP INITIATED! Faker char died.")
+				M.RunCmd("unfaker")
+			end)
+			
+			-- When REAL char dies
+			Faker.Conns[2] = Faker.Rhum.Died:Connect(function()
+				warn("Faker - BACK UP INITIATED! Real char died.")
+				M.RunCmd("unfaker")
+			end)
+			
+			-- When char disappears
+			Faker.Conns[3] = char.AncestryChanged:Connect(function(_, p)
+				if p then return end
+				warn("Faker - BACK UP INITIATED! Faker char disappeared.")
+				M.RunCmd("unfaker")
+			end)
+		end,
+	},
+	unfaker = {
+		a = {"unclone"},
+		d = "Deletes your clone and brings you back to your real character.",
+		f = function()
+			local Faker = M.Faker
+			if not Faker.char then return end
+			
+			-- Disconnect stuff
+			
+			M.RunCmd("clip", Faker.Rchar)
+			for _,v in pairs(Faker.Conns) do
+				M.Disconn(v)
+				v = nil
+			end
+			
+			-- Init real chor
+			char = Faker.Rchar
+			root = Faker.Rroot
+			hum = Faker.Rhum
+			player.Character = char
+			cam.CameraSubject = hum
+			root.CFrame = Faker.root.CFrame
+			
+			-- Reverse opaque-isy
+			for _,v in pairs(char:GetDescendants()) do
+				if not v:IsA("BasePart") then continue end
+				v.Transparency = 0
+				if v.Name ~= "HumanoidRootPart" then continue end
+				v.Transparency = 1
+			end
+			
+			-- Delete clone
+			Faker.char:Destroy()
+			
+			Faker.char = nil
+			Faker.Rchar = nil
+			Faker.root = nil
+			Faker.Rroot = nil
+			Faker.hum = nil
+			Faker.Rhum = nil
+		end,
+	},
+	antifling = {
+		a = {"nofling"},
+		d = "Disables everyones character collisions so you can't get flinged!",
+		f = function() -- Truely a disaster.
+			M.AntiFlingChars = {}
+
+			for i,target in pairs(Players:GetPlayers()) do
+				if target == player then continue end
+				local char = target.Character
+				if not char then continue end
+				M.AntiFlingChars[i] = char
+			end
+
+			M.AntiFlingConn = RunService.Stepped:Connect(function()
+				for _,v in pairs(M.AntiFlingChars) do
+					for _,v in pairs(v:GetDescendants()) do
+						if not v:IsA("BasePart") then continue end
+						v.CanCollide = false
+					end
+				end
+			end)
+		end,
+	},
+	unantifling = {
+		a = {"unofling"},
+		d = "I AM TIRED OKAY? I AM A SLAVE FOR THIS BASEMENT. YOu got toget m o t . Mylcation is aPstr",
+		f = function()
+			if M.AntiFlingConn then
+				M.Disconn(M.AntiFlingConn)
+				M.AntiFlingConn = nil
+
+				for _,v in pairs(M.AntiFlingChars) do
+					M.RunCmd("rcm", v)
+				end
+			end
+		end,
+	},
+	help = {
+		a = {},
+		d = "Says general information to what to do.",
+		f = function()
+			UniService.ShowConsole(true)
+print([[
+
+
+
+
+
+
+
+
+Welcome to the help section!:
+You can open the command bar by pressing the ";" key, or the "Jay's Cmds" button.
+
+You can use chat commands by having a prefix
+available prefixes (default if not modified): "; : ! . /"
+you can use a chat command by doing: !cmd ha ha ha argument
+If "AllowNoChatPrefix" is true then you can use
+commands without a prefix like: "cmd arg1 arg2 haha"
+
+USEFUL COMMANDS:
+cmd: Shows 1 command with it's information.
+cmds: Shows all commands with information.
+
+
+
+
+
+
+
+]])
+		end,
+	},
+	cmd = {
+		a = {"command"},
+		d = "Shows information of a singular command.",
+		f = function(cmd)
+			if not cmd then
+				cmd = "cmd"
+			end
+			local _,cmd,aliases,desc,func = M.FindCmd(cmd)
+			if not cmd then warn("No command found.") return end
+			local info = string.format([[
+
+Original Command: %s
+Aliases: %s
+Description: %s
+Function: %s
+]], cmd, table.concat(aliases, ", "), desc, tostring(func))
+
+			print(info)
+			UniService.ShowConsole(true)
+		end,
+	},
+	cmds = {
+		a = {"commands"},
+		d = "Shows all commands information.",
+		f = function()
+			for i,v in pairs(M.Cmds) do
+				M.RunCmd("cmd", i)
+			end
+		end,
+	},
+	invisible = {
+		a = {"invis"},
+		d = "Makes your character invisible, server replication by moving your real character far far away. VERY UNSTABLE!",
+		f = function(farintensity)
+			farintensity = tonumber(farintensity) or 1e3
+			local Faker = M.Faker
+			if Faker.char then return end
+			Faker.Rroot = root
+			Faker.Rhum = hum
+			Faker.Rchar = char
+			local cf = root.CFrame
+			
+			-- Moves character FAR FAR AWAY!
+			-- Initiation
+			M.InvisLV, M.InvisA = UniService.ApplyLinVel(root, Vector3.zero)
+			M.InvisAV, M.TempOHAHA = UniService.ApplyAngVel(root, Vector3.zero)
+			M.TempOHAHA:Destroy()
+			M.InvisAV.Attachment0 = M.InvisA
+			
+			-- Far far away.
+			M.Disconn(Conns.InvisConn)
+			Conns.InvisConn = RunService.RenderStepped:Connect(function()
+				if Faker.root then
+					Faker.Rroot.CFrame = CFrame.new((Vector3.one * farintensity) + Faker.root.Position)
+					return
+				end
+				Faker.Rroot.CFrame = CFrame.new(Vector3.one * farintensity)
+			end)
+			
+			task.wait(0.3) -- Wait so it can replicate through the server.
+			
+			M.RunCmd("faker")
+			
+			root.CFrame = cf
+			
+			for _,v in pairs(root:GetChildren()) do
+				if not v:IsA("LinearVelocity") and not v:IsA("AngularVelocity") then continue end
+				v:Destroy()
+			end
+		end,
+	},
+	visible = {
+		a = {"vis"},
+		d = "Makes you visible.",
+		f = function()
+			if not Conns.InvisConn then return end
+			local cf = root.CFrame
+			M.Disconn(Conns.InvisConn)
+			M.RunCmd("unfaker")
+			for _,v in pairs(root:GetChildren()) do
+				if not v:IsA("LinearVelocity") and not v:IsA("AngularVelocity") then continue end
+				v:Destroy()
+			end
+			root.CFrame = cf
+		end,
+	},
+	jumpscare = {
+		a = {"scare","jp"},
+		d = "Jumpscares people! Make sure you have invis on. VERY UNSTABLE AND DO NOT SPAM!!!",
+		f = function()
+			M.RunCmd("visible")
+			task.wait(0.35)
+			M.RunCmd("invisible")
+		end,
+	},
+	fling = {
+		a = {},
+		d = "Makes your character go FLING FLING and objects go BYE BYE! VERY UNSTABLE!!!",
+		f = function(intensity)
+			intensity = tonumber(intensity) or 1e30 -- Woah!
+			local Faker = M.Faker
+			if Faker.root then
+				M.RunCmd("unfling")
+				task.wait(0.15)
+			end
+			M.RunCmd("massless")
+			M.RunCmd("faker")
+			M.RunCmd("rcm")
+			local char = Faker.Rchar
+			local root = Faker.Rroot
+			local hum = Faker.Rhum
+			
+			--M.RunCmd("noclip", Faker.char)
+			M.RunCmd("antifling")
+			M.Disconn(Conns.FlingConn)
+			--M.Disconn("FlingConn0")
+			M.FlingLV, M.FlingA = UniService.ApplyLinVel(root, Vector3.zero)
+			M.FlingAV, M.TempOHAHAo = UniService.ApplyAngVel(root, Vector3.zero)
+			M.TempOHAHAo:Destroy()
+			M.FlingAV.Attachment0 = M.FlingA
+			
+			Conns.FlingConn = RunService.RenderStepped:Connect(function()
+				root.CFrame = CFrame.new(Faker.root.Position) * (root.CFrame - root.Position)
+			end)
+			
+			--for _,v in pairs(char:GetDescendants()) do
+			--	if not v:IsA("BasePart") then continue end
+			--	v.CanCollide = false
+			--	v.Massless = true
+			--end
+			
+			task.delay(0.1,function()
+				M.FlingAV.AngularVelocity = Vector3.one * intensity
+			end)
+		end,
+	},
+	unfling = {
+		a = {},
+		d = "Unflings. I am tired. This is at 11 PM bro-n-vro.",
+		f = function()
+			local Faker = M.Faker
+			local cf = Faker.root.CFrame
+			M.FlingAV.AngularVelocity = Vector3.zero
+			task.delay(0.2,function()
+				M.RunCmd("unfaker")
+				M.FlingAV:Destroy()
+				M.FlingAV = nil
+				M.FlingLV:Destroy()
+				M.FlingLV = nil
+				M.FlingA:Destroy()
+				M.FlingA = nil
+				
+				M.RunCmd("clip")
+				M.RunCmd("unantifling")
+				M.Disconn(Conns.FlingConn)
+				hum.PlatformStand = false
+				hum:ChangeState(Enum.HumanoidStateType.GettingUp)
+			end)
+		end,
+	},
+	horizontalfling = {
+		a = {"hfling"},
+		d = "I don't feel like it, but meh. It flings objects also but you spin horizontally. Boom, I said it. You happy?",
+		f = function(intensity)
+			intensity = tonumber(intensity) or 1e30 -- Woah!
+			local Faker = M.Faker
+			if Faker.root then
+				M.RunCmd("unfling")
+				task.wait(0.15)
+			end
+			M.RunCmd("massless")
+			M.RunCmd("faker")
+			M.RunCmd("rcm")
+			local char = Faker.Rchar
+			local root = Faker.Rroot
+			local hum = Faker.Rhum
+
+			M.RunCmd("noclip", Faker.char)
+			M.RunCmd("antifling")
+			M.Disconn(Conns.FlingConn)
+			--M.Disconn("FlingConn0")
+			M.FlingLV, M.FlingA = UniService.ApplyLinVel(root, Vector3.zero)
+			M.FlingAV, M.TempOHAHAo = UniService.ApplyAngVel(root, Vector3.zero)
+			M.TempOHAHAo:Destroy()
+			M.FlingAV.Attachment0 = M.FlingA
+
+			Conns.FlingConn = RunService.RenderStepped:Connect(function()
+				root.CFrame = CFrame.new(Faker.root.Position) * (root.CFrame - root.Position)
+			end)
+
+			--for _,v in pairs(char:GetDescendants()) do
+			--	if not v:IsA("BasePart") then continue end
+			--	v.CanCollide = false
+			--	v.Massless = true
+			--end
+
+			task.delay(0.1,function()
+				M.FlingAV.AngularVelocity = Vector3.new(0,1,0) * intensity
+			end)
+		end,
+	},
+	cmdcount = {
+		a = {},
+		d = "Shows all the commands without their information and how many commands are there. (Help me)",
+		f = function()
+			local count = 0
+			local c0 = 0
+			for i,v in pairs(M.Cmds) do
+				count += 1
+				c0 += 1
+				print("Cmd:",i,"Aliases:",table.concat(v.a, ", "))
+				c0 += #v.a
+			end
+			print("Command count:",count)
+			print("Total commands (Cmds + Aliases):",c0)
+			UniService.ShowConsole(true)
+		end,
+	},
+	keybind = {
+		a = {},
+		d = "Changes the keybind to open the command bar. MAKE SURE THAT IT IS ASCII CHARACTERS. YES FANCY I KNOW.",
+		f = function(bind)
+			warn("Make sure you input the keybind correctly and properly! I am not saying that it is wrong, just letting you know.")
+			M.Keybind = bind
+			print("Keybind:",M.Keybind)
+			CAS:UnbindAction("OpenCloseBar")
+			CAS:BindAction("OpenCloseBar",M.OpenCloseBar,false,Enum.KeyCode[M.Keybind])
+			local a = Enum.KeyCode.Quo
+		end,
+	},
+	allownochatprefix = {
+		a = {"nochatprefix","ancp"},
+		d = "When enabled, allows you to ",
+		f = "Unfinished :/"
+	},
+	flyfling = {
+		a = {},
+		d = "You fly, you fling.",
+		f = function(speed, intensity)
+			M.RunCmd("fling")
+			task.wait(0.1)
+			FlyService.ChangeSettings({
+				Speed = speed or FlyService.DefaultSpeed or 50,
+				CF = false,
+				Plat = true,
+				Anim = true,
+				Ang = true,
+				Rot = true
+			})
+			if speed then
+				FlyService.DefaultSpeed = speed
+			end
+			FlyService.Activate()
+		end,
+	},
+	gravity = {
+		a = {},
+		d = "You can change your characters gravity.",
+		f = function(targetGrav)
+			local function remove()
+				if not M.GravityVF then return end
+				M.Disconn(Conns.GravityConn)
+				M.GravityVF:Destroy()
+				M.GravityVF = nil
+				M.GravityA:Destroy()
+				M.GravityA = nil
+			end
+			
+			targetGrav = tonumber(targetGrav) or nil
+			if not targetGrav then
+				remove()
+				return
+			end
+			
+			remove()
+			
+			M.GravityVF = Instance.new("VectorForce",root)
+			M.GravityA = Instance.new("Attachment",root)
+			M.GravityVF.Attachment0 = M.GravityA
+			
+			Conns.GravityConn = RunService.Heartbeat:Connect(function()
+				local mass = root.AssemblyMass
+				local worldGrav = workspace.Gravity
+				local gravDiff = worldGrav - targetGrav
+				local force = Vector3.new(0, mass * gravDiff, 0)
+				M.GravityVF.Force = force
+				if M.GravityVF and M.GravityVF.Force then
+					local v = M.GravityVF.Force
+				end
+			end)
+		end,
+	},
+	sit = {
+		a = {},
+		d = "Makes you sit. That's all!",
+		f = function()
+			hum.Sit = true
+		end,
+	},
+	freeze = {
+		a = {},
+		d = "Makes you freeze! A cold command isn't it? (I don't get the joke too bro.)",
+		f = function()
+			for _,v in pairs(char:GetDescendants()) do
+				if not v:IsA("BasePart") then continue end
+				v.Anchored = true
+			end
+		end,
+	},
+	unfreeze = {
+		a = {},
+		d = "Makes you pretty warm so you heat down the coldness of the freeze (Insert_Word)",
+		f = function()
+			for _,v in pairs(char:GetDescendants()) do
+				if not v:IsA("BasePart") then continue end
+				v.Anchored = false
+			end
+		end,
+	},
+	becomelight = {
+		a = {},
+		d = "I SHALL BECOME LIGHT!",
+		f = function()
+			for _,v in pairs() do
+				
+			end
+		end,
+	},
+	plat = {
+		a = {},
+		d = "Makes you platform stand",
+		f = function()
+			hum.PlatformStand = true
+		end,
 	}
 }
 
@@ -1205,12 +1807,12 @@ end
 -- Stuff
 
 M.DefaultWalkSpeed = hum.WalkSpeed
-local Faker = {}
-M.Faker = Faker
-Faker.char = nil -- Even though it's not gonna be in the table. Why not?
-Faker.root = nil -- These are meant to be the real characters parts not the fake.
-Faker.hum = nil
-Faker.Active = false
+--local Faker = {} DEPRECATED
+--M.Faker = Faker
+--Faker.char = nil -- Even though it's not gonna be in the table. Why not?
+--Faker.root = nil -- These are meant to be the real characters parts not the fake.
+--Faker.hum = nil
+--Faker.Active = false
 
 M.DanceIds = {
 	r6 = {
@@ -1224,7 +1826,42 @@ M.DanceIds = {
 		[3] = 507777268
 	},
 }
+M.GenericAnimations = {
+	r6 = {
+		idle = 180435571,
+		walk = 180426354,
+		jump = 125750702,
+		fall = 180436148,
+		climb = 180436334,
+		sit = 178130996,
+		toolnone = 182393478,
+		toolslash = 129967390,
+		toollunge = 129967478,
+		wave = 128777973,
+		point = 128853357,
+		-- Already dance ids.
+		-- MEHHHH
+		dance1 = 182435998,
+		dance2 = 182436842,
+		dance3 = 182436935,
+		laugh = 129423131,
+		cheer = 129423030,
+	}
+}
+Conns.NoclipConns = {}
+Conns.GravityConns = {}
+-- Faker serivce?
+local Faker = {}
+M.Faker = Faker
 
-
+-- Variables & expected variables.
+--Faker.Active = false
+Faker.Rchar = nil -- R for real.
+Faker.Rroot = nil
+Faker.Rhum = nil
+Faker.char = nil -- The fakers parts
+Faker.root = nil
+Faker.hum = nil
+Faker.Conns = {}
 
 task.wait(0.1) -- Command start up
