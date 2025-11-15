@@ -43,8 +43,8 @@ M.Plat = true -- In your flight you will be platform standing. (Feels good
 M.Anim = true -- In your flight it will play a default animation for better... It's just good.
 M.Ang = true -- In your flight your angular velocity will be setted to 0
 M.Rot = true -- In your flight your root will be oriented the same as the lookvector of the camera.
-local animR6 = 130025294780390
-local animR15 = 121812367375506
+local animR6 = 180435571--130025294780390
+local animR15 = 507766666--121812367375506
 
 
 

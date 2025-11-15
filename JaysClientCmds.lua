@@ -52,7 +52,7 @@ local CAS, RunService, UIS, Players, Lighting = -- Just so that I can get the.
 	game:GetService("Lighting")
 
 -- Variables
-local player, plrgui, char, hum, root = UniService.GetChar(game.Players.LocalPlayer,true)
+local player, plrgui, char, hum, root, animator, humdesc, animate = UniService.GetChar(game.Players.LocalPlayer,true)
 local BarActive = false
 local BIS = UniService.BIS
 local AnimService = UniService.AnimService
@@ -64,22 +64,6 @@ M.Button = nil
 -- Main gui (No old school)
 M.Bar = nil
 M.Title = nil
-
--- Setup default props for lighting
-local DefaultLightingProps = {}
---for p,v in pairs(Lighting) do -- :( It doesn't work.
---	pcall(function()
---		DefaultLightingProps[p] = v
---	end)
---end
-
---local function AddProp(n)
---	if Lighting[n] then
---		DefaultLightingProps[n] = Lighting[n]
---	end
---end
---AddProp("Ambient")AddProp("Brightness")AddProp("ColorShift")
-
 
 -- GUI
 local function Gui()
@@ -150,17 +134,14 @@ local function OnDied()
 	D(Conns.SitFlyConn)
 	D(Conns.JumpConn)
 	D(Conns.InfWalkSpeed)
-	D(Conns.CFrameWalkConn)
-	M.Disconn(Conns.NoclipConns[char.Name])
+	D(Conns.NoclipConns[char.Name])
 	D(Conns.FlingConn)
-	--D(Conns.GravityConn)
-	--M.GravityVF = nil
-	--M.GravityA = nil
+	D(Conns.InvisConn)
 end
 
 -- On char
 local function OnChar()
-	player, plrgui, char, hum, root = UniService.GetChar(game.Players.LocalPlayer,true)
+	player, plrgui, char, hum, root, animator, humdesc, animate = UniService.GetChar(game.Players.LocalPlayer,true)
 	hum.Died:Connect(OnDied)
 	Gui()
 end
@@ -247,7 +228,6 @@ function M.FindCmd(n)
 		if M.Debugwebug then print("Total searches:",q) end
 		if not cmd then
 			if M.Debugwebug then warn("Failed to find command with name",n) end
-			if M.EmoteOnCmd then pcall(function() AnimService.PlayEmote(tostring(n))end) end
 			return
 		end
 	else
@@ -266,7 +246,15 @@ end
 -- Run command
 function M.RunCmd(n,...)
 	local cmd = M.FindCmd(n)
-	if not cmd then return end
+	if not cmd then
+		if M.EmoteOnCmd then 
+			local succ = AnimService.PlayEmote(tostring(n) or n or nil)
+			if not succ then
+				AnimService.PlayAnim(n)
+			end
+		end
+		return
+	end
 	if M.Debugwebug then print("Ran command",n) end
 	cmd.f(...)
 end
@@ -369,10 +357,9 @@ M.Cmds = {
 		f = function() -- Function
 			local pos = root.Position
 			M.RunCmd("re")
-			M.Conns.RespawnPosition = player.CharacterAdded:Connect(function(char)
-				wait(0)
+			Conns.RespawnPosition = player.CharacterAdded:Connect(function(char)
 				UniService.GetChar().root.CFrame = CFrame.new(pos)
-				M:Disconn(M.Conns.RespawnPosition)
+				M.Disconn(Conns.RespawnPosition)
 			end)
 		end
 	},
@@ -541,24 +528,6 @@ M.Cmds = {
 			M.Disconn(Conns.InfWalkSpeed)
 		end,
 	},
-	cmdinfodeprecated0 = {
-		a = {},
-		d = "DEPRECATED COMMAND. PLEASE DO NOT USE!",
-		f = function(cmd)
-			local name = cmd
-			cmd = table.find(M.Cmds,cmd)
-			if not cmd then warn("No command found.") return end
-			print("Command info:",name,"= {")
-			if cmd.a[1] then
-				print("	Aliases:",table.concat(cmd.a,", "))
-			else
-				print("	Aliases: None")
-			end
-			print("	Description:",cmd.d)
-			print("	Function:",cmd.f)
-			print("}")
-		end,
-	},
 	cframewalk = {
 		a = {"cfwalk","cwalk","cfw"},
 		d = "Moves your character by using CFrame instead of velocity. Horizontally sadly.",
@@ -570,10 +539,15 @@ M.Cmds = {
 			M.Disconn(Conns.CFrameWalkConn)
 			hum.WalkSpeed = 0
 			Conns.CFrameWalkConn = RunService.Heartbeat:Connect(function(dt)
+				if not root then return end
 				local moveVect = UniService.GetMoveVectorCam(Vector3.new(1,0,1))
 				if moveVect.Magnitude > 0 then
 					root.CFrame += moveVect * value * dt
 				end
+			end)
+			Conns.CFrameWalkConn0 = player.CharacterAdded:Connect(function(char)
+				local hum = char:WaitForChild("Humanoid")
+				hum.WalkSpeed = 0
 			end)
 		end,
 	},
@@ -582,183 +556,8 @@ M.Cmds = {
 		d = "Makes you stop CFrame walk.",
 		f = function()
 			M.Disconn(Conns.CFrameWalkConn)
+			M.Disconn(Conns.CFrameWalkConn0)
 			hum.WalkSpeed = M.DefaultWalkSpeed
-		end,
-	},
-	restorecollisionsmasslessdeprecated0 = {
-		a = {},
-		d = "DEPRECATED COMMAND. PLEASE DO NOT USE!",
-		f = function(playername)
-			if not playername then playername = player.Name end
-			local target = UniService.SinglePlayerType(player, playername)
-			if not target then return end
-			for _,v in pairs(char:GetDescendants()) do
-				local n = v.Name
-				if not v:IsA("BasePart") and not v:IsA("Part") and not v:IsA("MeshPart") then continue end
-				v.CanCollide = false
-				v.Massless = false
-				if n == "Head" or n == "Torso" or n == "LowerTorso" or n == "UpperTorso" then
-					if n == "Head" and UniService.RigType == "r15" then continue end
-					v.CanCollide = true
-				end
-			end
-		end,
-	},
-	noclipdeprecated0 = {
-		a = {},
-		d = "DEPRECATED COMMAND. PLEASE DO NOT USE!",
-		f = function(playername)
-			if not playername then playername = player.Name end
-			local target = UniService.SinglePlayerType(player, playername)
-			if not target then return end
-			M.Disconn(Conns.NoclipConn)
-			Conns.NoclipConn = RunService.Stepped:Connect(function()
-				for _,v in pairs(char:GetDescendants()) do
-					if not v:IsA("BasePart") and not v:IsA("Part") and not v:IsA("MeshPart") then continue end
-					v.CanCollide = false
-				end
-			end)
-		end,
-	},
-	clipdeprecated0 = {
-		a = {},
-		d = "DEPRECATED COMMAND. PLEASE DO NOT USE!",
-		f = function()
-			M.Disconn(Conns.NoclipConn)
-			M.RunCmd("rcm")
-		end,
-	},
-	fakerdeprecated0 = {
-		a = {},
-		d = "DEPRECATED COMMAND. PLEASE DO NOT USE!",
-		f = function()
-			if M.Faker.Active then return end
-			M.Faker.Active = true
-			-- Store originals
-			local Faker = M.Faker
-			Faker.root = root
-			Faker.hum = hum
-			Faker.char = char
-
-			-- Noclip orig character
-			M.Disconn(Conns.FakerConn)
-			M.Disconn(Conns.FakerConn0)
-			Conns.FakerConn = RunService.Stepped:Connect(function()
-				for _,v in pairs(Faker.char:GetDescendants()) do
-					if not v:IsA("BasePart") and not v:IsA("Part") and not v:IsA("MeshPart") then continue end
-					v.CanCollide = false
-				end
-			end)
-
-			-- New character
-			char.Archivable = true -- To clone of course!
-			char = char:Clone()
-			char.Name = "Fake_" .. char.Name
-			root = char:WaitForChild("HumanoidRootPart")
-			hum = char:WaitForChild("Humanoid")
-			char.Parent = workspace
-			Conns.FakerConn0 = hum.Died:Connect(function()
-				M.RunCmd("unfaker")
-				M.Disconn(Conns.FakerConn0)
-			end)
-
-			-- Setting up stuff
-			cam.CameraSubject = hum
-			player.Character = char
-
-			-- Make orig character opaque
-			for _,v in pairs(Faker.char:GetDescendants()) do
-				if v:IsA("BasePart") or v:IsA("Part") or v:IsA("MeshPart") then
-					v.Transparency = 0.5
-				end
-			end
-
-			-- a
-			M.RunCmd("clip")
-			M.Disconn("FakerConn1")
-			Conns.FakerConn1 = char.ChildRemoved:Connect(function(child)
-				local cf = root.CFrame
-				if child:IsA("BasePart") then
-					M.RunCmd("unfaker")
-				end
-				M.RunCmd("re")
-			end)
-		end,
-	},
-	unfakerdeprecated0 = {
-		a = {},
-		d = "DEPRECATED COMMAND. PLEASE DO NOT USE!",
-		f = function()
-			M.Faker.Active = false
-			M.Disconn(Conns.FakerConn)
-			M.Disconn("FakerConn0")
-			M.Disconn("FakerConn1")	
-			local Faker = M.Faker
-			Faker.root.CFrame = root.CFrame
-			char:Destroy()
-			player.Character = Faker.char
-			char = Faker.char
-			root = Faker.root
-			hum = Faker.hum
-			Faker.char = nil
-			Faker.root = nil
-			Faker.hum = nil
-			cam.CameraSubject = hum
-			for _,v in pairs(char:GetDescendants()) do
-				if v:IsA("BasePart") or v:IsA("Part") or v:IsA("MeshPart") then
-					if v.Name == "HumanoidRootPart" then v.Transparency = 1 continue end
-					v.Transparency = 0
-				end
-			end
-			M.RunCmd("clip")
-		end,
-	},
-	invisibledeprecated0 = {
-		a = {},
-		d = "DEPRECATED COMMAND. PLEASE DO NOT USE!",
-		f = function(farintensity)
-			if M.Faker.Active then return end
-			local origcf = root.CFrame
-			local Oroot = root
-			farintensity = tonumber(farintensity) or 1e3
-			M.Disconn(Conns.InvisibleConn)
-			local lv, a = UniService.ApplyLinVel(root, Vector3.zero)
-			local av, a2 = UniService.ApplyAngVel(root, Vector3.zero)
-			a2:Destroy()
-			av.Attachment0 = a
-			M.InvisibleLV = lv
-			M.InvisibleAV = av
-			Conns.InvisibleConn = RunService.RenderStepped:Connect(function()
-				local froot = nil
-				pcall(function()
-					froot = workspace:FindFirstChild("Fake_"..player.Name).HumanoidRootPart
-				end)
-				if froot then
-					Oroot.CFrame = CFrame.new(Vector3.one*farintensity+froot.Position)
-				else
-					Oroot.CFrame = CFrame.new(Vector3.one*farintensity)
-				end
-			end)
-			task.delay(0.15,function()
-				M.RunCmd("faker")
-				task.wait(0)
-				root.CFrame = origcf
-				local lv, av = root:FindFirstChildOfClass("LinearVelocity"), root:FindFirstChildOfClass("AngularVelocity")
-				if lv and av then
-					lv:Destroy()
-					av:Destroy()
-				end
-			end)
-		end,
-	},
-	visibledeprecated0 = {
-		a = {},
-		d = "DEPRECATED COMMAND. PLEASE DO NOT USE!",
-		f = function()
-			M.Disconn(Conns.InvisibleConn)
-			M.RunCmd("unfaker")
-			M.InvisibleLV:Destroy()
-			M.InvisibleAV:Destroy()
 		end,
 	},
 	spectate = {
@@ -780,118 +579,9 @@ M.Cmds = {
 			cam.CameraSubject = hum
 		end,
 	},
-	flingdeprecated0 = {
-		a = {},
-		d = "DEPRECATED COMMAND. PLEASE DO NOT USE!",
-		f = function(intensity)
-			if M.Faker.Active then return end
-			intensity = intensity or 1e35
-			local Oroot = root
-
-			M.RunCmd("faker")
-			M.Disconn(Conns.FlingConn)
-
-			--M.Disconn(Conns.FlingConn0)
-			--Conns.FlingConn0 = RunService.Stepped:Connect(function()
-
-			--end)
-			for _,v in pairs(M.Faker.char:GetDescendants()) do
-				if not v:IsA("BasePart") and not v:IsA("Part") and not v:IsA("MeshPart") then continue end
-				v.CanCollide = false
-				v.Massless = true
-			end
-
-			local safeCF = Oroot.CFrame
-			Conns.FlingConn = RunService.RenderStepped:Connect(function()
-				local froot = nil
-				pcall(function()
-					froot = workspace:FindFirstChild("Fake_"..player.Name).HumanoidRootPart
-				end)
-				if froot then
-					Oroot.CFrame = CFrame.new(froot.Position) * (Oroot.CFrame - Oroot.Position)
-					--av.AngularVelocity = Vector3.one*intensity
-					M.Faker.hum.PlatformStand = true
-					M.Faker.hum:ChangeState(Enum.HumanoidStateType.PlatformStanding)
-				end
-
-				-- If things get out of hand!
-				local lmag = froot.AssemblyLinearVelocity.Magnitude
-				local amag = froot.AssemblyAngularVelocity.Magnitude
-				if lmag <= 100 then
-					safeCF = Oroot.CFrame
-				end
-				if lmag > 100 then
-					warn("Went back to safe CFrame.")
-					froot.CFrame = safeCF
-					froot.AssemblyLinearVelocity = Vector3.zero
-				end
-				if amag > 50 then
-					froot.AssemblyAngularVelocity = Vector3.zero
-				end
-			end)
-			
-			local a = function(v)
-				for _,v2 in pairs(v.Character:GetDescendants()) do
-					pcall(function()
-					v2.CanCollide = false
-					end)
-				end
-			end
-
-			M.Disconn(Conns.FlingConn1)
-			for _,v in pairs(Players:GetPlayers()) do
-				if v.Name == player.Name then continue end
-				--print(v.Name,123)
-				a(v)
-				v.CharacterAdded:Connect(function()
-					a(v)
-					--print(v.Name,6767)
-				end)
-			end
-			Conns.FlingConn1 = Players.PlayerAdded:Connect(function(v)
-				if v.Name == player.Name then return end
-				--print(v.Name,123)
-				a(v)
-				v.CharacterAdded:Connect(function()
-					task.wait(0)
-					a(v)
-					--print(v.Name,6767)
-				end)
-			end)
-
-			task.delay(0,function()
-				local lv, a = UniService.ApplyLinVel(Oroot, Vector3.zero)
-				local av, a2 = UniService.ApplyAngVel(Oroot, Vector3.one*intensity)
-				a2:Destroy()
-				av.Attachment0 = a
-				M.InvisibleLV = lv
-				M.InvisibleAV = av
-			end)
-		end,
-	},
-	unflingdeprecated0 = {
-		a = {},
-		d = "DEPRECATED COMMAND. PLEASE DO NOT USE!",
-		f = function()
-			local lv = M.InvisibleLV
-			local av = M.InvisibleAV
-			if not lv and not av then return end
-			lv.VectorVelocity = Vector3.zero
-			av.AngularVelocity = Vector3.zero
-			task.delay(0.1,function()
-				lv:Destroy()
-				av:Destroy()
-				M.Disconn(Conns.FlingConn0)
-				M.Disconn(Conns.FlingConn)
-				M.Disconn(Conns.FlingConn1)
-				M.RunCmd("unfaker")
-				hum.PlatformStand = false
-			end)
-		end,
-	},
 	playanim = {
-		a = {},
-		d = "Plays an animation by an Id.",
+		a = {"an","anim"},
+		d = "Plays an animation by an Id or an string input. With a string input it searches in GenericAnimations.",
 		f = function(id)
 			local orig = id
 			id = tonumber(id) or nil
@@ -902,13 +592,19 @@ M.Cmds = {
 						id = v
 						break
 					end
+				else
+					for i,v in pairs(M.GenericAnimations.r15) do
+						if i ~= orig then continue end
+						id = v
+						break
+					end
 				end
 			end
 			AnimService.PlayAnim(id)
 		end,
 	},
 	unplayanim = {
-		a = {"undance","und","unanim"},
+		a = {"undance","und","unanim","uan"},
 		d = "Plays an animation by an Id.",
 		f = function(id)
 			AnimService.Stop()
@@ -936,25 +632,6 @@ M.Cmds = {
 		f = function(id)
 			id = tonumber(id) or 126683101367289
 			AnimService.PlayEmote(id)
-			AnimService.PlayEmote(id)
-		end,
-	},
-	commandsdeprecated0 = {
-		a = {"cmds","viewcmds"},
-		d = "DEPRECATED COMMAND. PLEASE DO NOT USE!",
-		f = function()
-			print("COMMANDS:")
-			for cmd,info in pairs(M.Cmds) do
-				print("	"..cmd,"= {")
-				if info.a[1] then
-					print("		Aliases:",table.concat(info.a,", "))
-				else
-					print("		Aliases: None")
-				end
-				print("		Description:",info.d)
-				print("		Function:",info.f)
-				print("	}")
-			end
 		end,
 	},
 	spin = {
@@ -968,21 +645,25 @@ M.Cmds = {
 				M.SpinA = nil
 			end
 			value = tonumber(value) or 5
-			local av, a = UniService.ApplyAngVel(root, Vector3.new(0,value,0))
-			M.SpinAV = av
-			M.SpinA = a
+			M.SpinAV, M.SpinA = UniService.ApplyAngVel(root, Vector3.new(0,value,0))
+			
+			Conns.SpinConn = player.CharacterAdded:Connect(function(char)
+				local root = char:WaitForChild("HumanoidRootPart")
+				M.SpinAV, M.SpinA = UniService.ApplyAngVel(root, Vector3.new(0,value,0))
+			end)
 		end,
 	},
 	unspin = {
 		a = {},
 		d = "Stops spinning your character horizontally on the Y-axis.",
 		f = function()
-			if M.SpinAV and M.SpinA then
+			pcall(function()
 				M.SpinAV:Destroy()
 				M.SpinA:Destroy()
 				M.SpinAV = nil
 				M.SpinA = nil
-			end
+				M.Disconn(Conns.SpinConn)
+			end)
 		end,
 	},
 	massless = {
@@ -1134,9 +815,14 @@ M.Cmds = {
 		d = "Makes you teleport to a player with a given username.",
 		f = function(target)
 			target = UniService.SinglePlayerType(player, target)
-			local root2 = UniService.GetChar(target).root
+			local root2
+			local s, r = pcall(function()
+				return UniService.GetChar(target).root
+			end)
+			if not s and not r then return end
+			root2 = r
 			
-			if not root or not root2 then return end
+			if not root then return end
 			
 			root.CFrame = root2.CFrame
 		end,
@@ -1148,12 +834,6 @@ M.Cmds = {
 			if M.NVActive then
 				M.NVActive = false
 				
-				-- Reset lighting props
-				for p,v in pairs(DefaultLightingProps) do
-					pcall(function()
-						Lighting[p] = v
-					end)
-				end
 				
 				return "¯\_(ツ)_/¯" -- Why not ¯\_(ツ)_/¯
 			end
@@ -1286,9 +966,9 @@ M.Cmds = {
 			
 			-- INIT
 			-- Set variables
-			Faker.Rchar = char
-			Faker.Rroot = root
-			Faker.Rhum = hum
+			Faker.Rchar = Faker.Rchar or char
+			Faker.Rroot = Faker.Rroot or root
+			Faker.Rhum = Faker.Rhum or hum
 			char.Archivable = true -- Set archivable
 			
 			-- Cloning
@@ -1321,10 +1001,6 @@ M.Cmds = {
 			
 			
 			
-			for _,v in pairs(Faker.Conns) do
-				M.Disconn(v)
-				v = nil
-			end
 			-- BACK UP METHODS (When something is wrong with the fake char)
 			-- When char dies
 			Faker.Conns[1] = hum.Died:Connect(function()
@@ -1332,7 +1008,6 @@ M.Cmds = {
 				M.RunCmd("unfaker")
 			end)
 			
-			-- When REAL char dies
 			Faker.Conns[2] = Faker.Rhum.Died:Connect(function()
 				warn("Faker - BACK UP INITIATED! Real char died.")
 				M.RunCmd("unfaker")
@@ -1349,17 +1024,19 @@ M.Cmds = {
 	unfaker = {
 		a = {"unclone"},
 		d = "Deletes your clone and brings you back to your real character.",
-		f = function()
+		f = function(_, DO_NOT_TOUCH)
 			local Faker = M.Faker
-			if not Faker.char then return end
+			--if not Faker.char then return end
 			
 			-- Disconnect stuff
+			if not DO_NOT_TOUCH then
+				for _,v in pairs(Faker.Conns) do
+					M.Disconn(v)
+					v = nil
+				end
+			end
 			
 			M.RunCmd("clip", Faker.Rchar)
-			for _,v in pairs(Faker.Conns) do
-				M.Disconn(v)
-				v = nil
-			end
 			
 			-- Init real chor
 			char = Faker.Rchar
@@ -1723,6 +1400,7 @@ Function: %s
 			local function remove()
 				if not M.GravityVF then return end
 				M.Disconn(Conns.GravityConn)
+				M.Disconn(Conns.GravityConn0)
 				M.GravityVF:Destroy()
 				M.GravityVF = nil
 				M.GravityA:Destroy()
@@ -1742,6 +1420,7 @@ Function: %s
 			M.GravityVF.Attachment0 = M.GravityA
 			
 			Conns.GravityConn = RunService.Heartbeat:Connect(function()
+				if not root and not M.GravityVF then return end
 				local mass = root.AssemblyMass
 				local worldGrav = workspace.Gravity
 				local gravDiff = worldGrav - targetGrav
@@ -1750,6 +1429,12 @@ Function: %s
 				if M.GravityVF and M.GravityVF.Force then
 					local v = M.GravityVF.Force
 				end
+			end)
+			Conns.GravityConn0 = player.CharacterAdded:Connect(function(char)
+				local root = char:WaitForChild("HumanoidRootPart")
+				M.GravityVF = Instance.new("VectorForce",root)
+				M.GravityA = Instance.new("Attachment",root)
+				M.GravityVF.Attachment0 = M.GravityA
 			end)
 		end,
 	},
@@ -1795,6 +1480,205 @@ Function: %s
 		f = function()
 			hum.PlatformStand = true
 		end,
+	},
+	spawnlocation = {
+		a = {"spawnloc"},
+		d = "Sets a new spawn point",
+		f = function()
+			local cf = root.CFrame
+			Conns.SpawnLocConn = player.CharacterAdded:Connect(function(char)
+				local root = char:WaitForChild("HumanoidRootPart")
+				root.CFrame = cf
+			end)
+		end,
+	},
+	unspawnlocation = {
+		a = {"uspawnloc"},
+		d = "Disconnects the SpawnLocConn so you spawn regularly.",
+		f = function()
+			M.Disconn(Conns.SpawnLocConn)
+		end,
+	},
+	surpisecmd = {
+		a = {"randomcmd"},
+		d = "Surpises you with random command! (Psst! It doesn't work, I am sorry.)",
+		f = function()
+			M.Cmds[math.random(1,20)].f()
+		end,
+	},
+	corruption = {
+		a = {"corrupt"},
+		d = "Corrupts your world (Literally because it affects your client. Also it only affects the workspace parts)",
+		f = function(instances) -- Terribally coded and I have terribel spelling because this command is no use for actual. Cheating? For good use for exploiters?
+			for i = 1,tonumber(instances)or 3 do
+				task.spawn(function()
+					while task.wait(0) do
+						local parts = workspace:GetDescendants()
+						local v = parts[math.random(1,#parts)]
+						if not v:IsA("BasePart") then continue end
+						if v.Name == player.Name or v.Parent.Name == player.Name or v.Parent.Parent.Name == player.Name then continue end
+						local c = math.random(1,8)
+						pcall(function()
+						if c == 1 then
+							v.Size = Vector3.new(math.random(-10,10),math.random(-10,10),math.random(-10,10))
+						elseif c == 2 then
+							v.Position = Vector3.new(math.random(-50,50),math.random(-50,50),math.random(-50,50))
+						elseif c==3 then
+							v.Color = Color3.fromRGB(math.random(0,255),math.random(0,255),math.random(0,255))
+						elseif c==4 then
+							local mats = Enum.Material:GetEnumItems()
+							v.Material = mats[math.random(1,#mats)]
+						elseif c==5 then
+							v.Transparency = math.random(0,100)/100
+						elseif c==6 then
+							v.Orientation = Vector3.new(math.random(-180,180),math.random(-180,180),math.random(-180,180))
+						elseif c==7 then
+							v.Anchored = not v.Anchored
+						elseif c== 8 then
+							local shapes = Enum.PartType:GetEnumItems()  -- returns a table of all enum values
+							v.Shape = shapes[math.random(1, #shapes)]
+						end
+						end)
+					end
+				end)
+			end
+		end,
+	},
+	anbundle1 = {
+		a = {},
+		d = "This is a tesing command, that's why the name is f###ed up.",
+		f = function(bundle, anim) -- Bundle for the animation bundle and the animation for the animation with IN that bundle.
+			pcall(function()
+				anim = M.GenericAnimations.r15[bundle or "adidas"][anim or "idle"]
+			end)
+			if not anim then return end
+			AnimService.PlayAnim(anim)
+		end,
+	},
+	setanimbundle = {
+		a = {"setbundle"},
+		d = "Sets your animation bundle to something different like the Zombine animation pack/bundle. SOME BUNDLES DO NOT WORK. ALSO DON'T BLAME ME I COPIED THE ASSET ID'S SOMEWHERE ELSE!!!",
+		f = function(bundle)
+			if bundle == "random" then
+				local bundles = {}
+				for i,_ in pairs(M.GenericAnimations.r15.bundles) do
+					table.insert(bundles, i)
+				end
+				bundle = bundles[math.random(1,#bundles)]
+			end
+			local prefix = "rbxassetid://"
+			local succ, res = pcall(function()
+				animate.Disabled = true
+				animate.run.RunAnim.AnimationId = prefix .. M.GenericAnimations.r15.bundles[bundle].run
+				animate.walk.WalkAnim.AnimationId = prefix .. M.GenericAnimations.r15.bundles[bundle].walk
+				animate.jump.JumpAnim.AnimationId = prefix .. M.GenericAnimations.r15.bundles[bundle].jump
+				animate.idle.Animation1.AnimationId = prefix .. M.GenericAnimations.r15.bundles[bundle].idle1
+				animate.idle.Animation2.AnimationId = prefix .. M.GenericAnimations.r15.bundles[bundle].idle2
+				animate.fall.FallAnim.AnimationId = prefix .. M.GenericAnimations.r15.bundles[bundle].fall
+				animate.climb.ClimbAnim.AnimationId = prefix .. M.GenericAnimations.r15.bundles[bundle].climb
+				animate.swim.Swim.AnimationId = prefix .. M.GenericAnimations.r15.bundles[bundle].swim
+				animate.swimidle.SwimIdle.AnimationId = prefix .. M.GenericAnimations.r15.bundles[bundle].swmidle
+				animate.Disabled = false
+			end)
+			if succ then
+				print("Successfully setted animation bundle to",bundle)
+			else
+				warn("Failed to set animation bundle to",bundle)
+				warn(res)
+			end
+		end,
+	},
+	viewanimbundles = {
+		a = {"viewbundles"},
+		d = "Views all r15 animation packs/bundles available in M.GenericAnimations.r15 Some of the packs/bundles do NOT work. Don't blame me tho brother.",
+		f = function()
+			UniService.ShowConsole(true)
+			for i,_ in pairs(M.GenericAnimations.r15.bundles) do
+				print("Bundle:",i)
+			end
+		end,
+	},
+	kick = {
+		a = {},
+		d = "This totally server-sided kicks someone. It's TOTALLY a backdoor to all roblox games.",
+		f = function()
+			print("Lmao?")
+			player:Kick("Lmao?")
+		end,
+	},
+	fakersafe = {
+		a = {"clonesafe"},
+		d = "If something fails within the faker/clone command, use this command to escape!",
+		f = function()
+			player.Character = workspace:FindFirstChild(player.Name)
+			local char = player.Character
+			local hum = char:FindFirstChildOfClass("Humanoid")
+			cam.CameraSubject = hum
+		end,
+	},
+	testtodirection = {
+		a = {"testtodir", "ttd"},
+		d = "This is a test command, subject is TestSubject67.",
+		f = function(dir, offset, target)
+			-- Init
+			if not root then return end
+			
+			if target then
+				target = UniService.SinglePlayerType(player, target)
+				target = UniService.GetChar(target).char
+			else
+				target = workspace:FindFirstChild("TestSubject67")
+			end
+			if not target then target = workspace:FindFirstChild("TestSubject67") end
+			if not target then return end
+			
+			local root2 = target:FindFirstChild("HumanoidRootPart")
+			if not root2 then return end
+
+			dir = dir or "right"
+			dir = M.ToDirs[dir:lower()]
+			offset = tonumber(offset) or 5
+
+			-- Calculate new position with offset along the direction
+			local pos = root2.CFrame.Position + (root2.CFrame:VectorToWorldSpace(dir) * offset)
+
+			-- Set CFrame of your root and make it face the same way as the target
+			root.CFrame = CFrame.lookAt(pos, pos + root2.CFrame.LookVector)
+		end,
+	},
+	todir = {
+		a = {"td"},
+		d = "Makes you teleport to a player with a direction (6 dirs) and a offset.",
+		f = function(target, dir, offset)
+			M.RunCmd("ttd", dir, offset, target)
+		end,
+	},
+	uniquit = {
+		a = {},
+		d = "Universally quits everything. Life is dihpressing.",
+		f = function()
+			UniService.UniQuit()
+		end,
+	},
+	looptodir = {
+		a = {"ltd"},
+		d = "Loop teleports you to a player with a direction",
+		f = function(target, dir, offset)
+			Conns.LoopToDirConn = RunService.Heartbeat:Connect(function()
+				if not root then return end
+				root.AssemblyLinearVelocity = Vector3.zero
+				root.AssemblyAngularVelocity = Vector3.zero
+				M.RunCmd("td", target, dir, offset)
+			end)
+		end,
+	},
+	unlooptodir = {
+		a = {"ultd"},
+		d = "Stops.",
+		f = function()
+			Conns.LoopToDirConn:Disconnect() -- We are discontinuing M.Disconn (It sucks)
+			Conns.LoopToDirConn = nil
+		end,
 	}
 }
 
@@ -1826,28 +1710,7 @@ M.DanceIds = {
 		[3] = 507777268
 	},
 }
-M.GenericAnimations = {
-	r6 = {
-		idle = 180435571,
-		walk = 180426354,
-		jump = 125750702,
-		fall = 180436148,
-		climb = 180436334,
-		sit = 178130996,
-		toolnone = 182393478,
-		toolslash = 129967390,
-		toollunge = 129967478,
-		wave = 128777973,
-		point = 128853357,
-		-- Already dance ids.
-		-- MEHHHH
-		dance1 = 182435998,
-		dance2 = 182436842,
-		dance3 = 182436935,
-		laugh = 129423131,
-		cheer = 129423030,
-	}
-}
+M.GenericAnimations = UniService.GenericAnimations
 Conns.NoclipConns = {}
 Conns.GravityConns = {}
 -- Faker serivce?
@@ -1863,5 +1726,21 @@ Faker.char = nil -- The fakers parts
 Faker.root = nil
 Faker.hum = nil
 Faker.Conns = {}
+
+-- ToDir directions
+M.ToDirs = {
+	forward = Vector3.new(0, 0, -1),
+	f = Vector3.new(0, 0, -1),
+	back = Vector3.new(0, 0, 1),
+	b = Vector3.new(0, 0, 1),
+	right = Vector3.new(1, 0, 0),
+	r = Vector3.new(1, 0, 0),
+	left = Vector3.new(-1, 0, 0),
+	l = Vector3.new(-1, 0, 0),
+	up = Vector3.new(0, 1, 0),
+	u = Vector3.new(0, 1, 0),
+	down = Vector3.new(0, -1, 0),
+	d = Vector3.new(0, -1, 0)
+}
 
 task.wait(0.1) -- Command start up
